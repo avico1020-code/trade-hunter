@@ -1,0 +1,43 @@
+---
+alwaysApply: true
+description: Project structure and architecture overview
+---
+
+# Project Structure Guide
+
+This is a Next.js 15 application with TypeScript, Clerk authentication, and Convex backend, configured for Hebrew RTL support.
+
+## Key Files and Directories
+
+- **Main Entry Point**: [app/layout.tsx](mdc:app/layout.tsx) - Root layout with Hebrew RTL configuration
+- **App Router**: [app/](mdc:app/) - Next.js 15 App Router file-based routing
+- **Authentication**: [app/(auth)/](mdc:app/(auth)/) - Auth pages (sign-in, sign-up)
+- **Components**: [components/](mdc:components/) - Reusable UI components
+- **Convex Backend**: [convex/](mdc:convex/) - Backend functions and database schema
+- **Configuration**: [next.config.ts](mdc:next.config.ts), [tsconfig.json](mdc:tsconfig.json), [biome.json](mdc:biome.json), [tailwind.config.ts](mdc:tailwind.config.ts), [components.json](mdc:components.json)
+
+## App Structure
+
+- **Pages**: [app/page.tsx](mdc:app/page.tsx), [app/page1/page.tsx](mdc:app/page1/page.tsx), [app/page2/page.tsx](mdc:app/page2/page.tsx), [app/page3/page.tsx](mdc:app/page3/page.tsx)
+- **Auth Pages**: [app/(auth)/sign-in/page.tsx](mdc:app/(auth)/sign-in/page.tsx), [app/(auth)/sign-up/page.tsx](mdc:app/(auth)/sign-up/page.tsx)
+- **Components**: [components/Navbar.tsx](mdc:components/Navbar.tsx), [components/SignInModal.tsx](mdc:components/SignInModal.tsx)
+- **Providers**: [components/providers/providers.tsx](mdc:components/providers/providers.tsx) - Clerk and Convex providers
+
+## Key Technologies
+
+- **Next.js 15**: React framework with App Router
+- **TypeScript**: Type-safe JavaScript with strict mode
+- **Clerk**: Authentication service
+- **Convex**: Backend-as-a-service with real-time capabilities
+- **Tailwind CSS v4**: Utility-first CSS framework with PostCSS
+- **ShadCN UI**: Pre-built accessible components with Tailwind
+- **Radix UI**: Accessible component primitives (used by ShadCN)
+- **Biome**: Fast linter and formatter
+- **Bun**: Package manager (preferred over npm/yarn)
+
+## RTL/Hebrew Support
+
+The app is configured for Hebrew RTL (Right-to-Left) text direction:
+- `lang="he"` and `dir="rtl"` in root layout
+- Hebrew metadata and descriptions
+- RTL-aware component structure

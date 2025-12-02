@@ -1,0 +1,60 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx
+description: TypeScript and React coding standards
+---
+
+# TypeScript and React Standards
+
+## TypeScript Configuration
+
+- Use strict TypeScript with [tsconfig.json](mdc:tsconfig.json) configuration
+- Enable `strict: true` mode for type safety
+- Use path aliases: `@/*` maps to project root
+- Prefer explicit types over `any`
+
+## React Best Practices
+
+- Use functional components with hooks
+- Prefer `"use client"` directive for client components
+- Use proper TypeScript interfaces for props
+- Follow React 19 patterns and conventions
+
+## Code Style (Biome Configuration)
+
+Based on [biome.json](mdc:biome.json):
+
+- **Indentation**: 2 spaces
+- **Line Width**: 100 characters
+- **Quotes**: Double quotes for strings and JSX
+- **Semicolons**: Always required
+- **Trailing Commas**: ES5 style
+- **Arrow Parentheses**: Always required
+
+## Import Organization
+
+- Use Biome's auto-import organization
+- Group imports: external libraries, internal modules, relative imports
+- Use absolute imports with `@/` prefix when possible
+
+## Component Structure
+
+```typescript
+// Preferred component structure
+interface ComponentProps {
+  // Define props with proper types
+}
+
+export default function Component({ prop1, prop2 }: ComponentProps) {
+  // Component logic
+  return (
+    // JSX with proper formatting
+  );
+}
+```
+
+## Error Handling
+
+- Use proper error boundaries
+- Handle async operations with try-catch
+- Provide meaningful error messages
+- Use TypeScript's strict null checks

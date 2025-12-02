@@ -1,0 +1,11 @@
+# This directory will contain Python rulebook modules
+# Each rulebook defines scoring logic for trading algorithms
+#
+# Structure:
+# - macro_rulebook.py       - Macro economic indicators scoring
+# - sector_rulebook.py      - Sector-specific scoring
+# - news_rulebook.py        - News sentiment scoring
+# - options_rulebook.py     - Options flow analysis
+# - micro_rulebook.py       - Company-level scoring
+# - technical_rulebook.py   - Technical indicators scoring
+

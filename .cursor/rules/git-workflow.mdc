@@ -1,0 +1,149 @@
+---
+description: Git workflow and command guidelines for safe version control
+---
+
+# Git Workflow and Commands Guide
+
+## Manual Git Usage Philosophy
+
+- **Always Manual**: Encourage users to run Git commands manually for safety and learning
+- **Teach Commands**: Explain what each command does and when to use it
+- **Safety First**: Never automate destructive Git operations
+- **Learning Focus**: Help users understand Git concepts, not just run commands
+
+## Essential Git Commands
+
+### Daily Workflow Commands
+- **`git status`** - Check what files have changed
+- **`git add .`** - Stage all changes in current directory
+- **`git add <filename>`** - Stage specific files only
+- **`git commit -m "your message here"`** - Commit changes with descriptive message
+- **`git push`** - Push commits to remote repository
+- **`git pull`** - Pull latest changes from remote repository
+
+### Information Commands
+- **`git log --oneline`** - View commit history in compact format
+- **`git log --graph --oneline`** - View commit history with branch visualization
+- **`git diff`** - See what changes you've made (unstaged)
+- **`git diff --staged`** - See what changes are staged for commit
+- **`git branch`** - List all branches
+- **`git branch -a`** - List all branches including remote
+
+### Branch Management
+- **`git checkout -b <branch-name>`** - Create and switch to new branch
+- **`git checkout <branch-name>`** - Switch to existing branch
+- **`git merge <branch-name>`** - Merge branch into current branch
+- **`git branch -d <branch-name>`** - Delete local branch (safe delete)
+
+## Branch Strategy
+
+- **Main Branch**: `main` - production-ready code
+- **Feature Branches**: `feature/description` - new features
+- **Bug Fixes**: `fix/description` - bug fixes
+- **Hotfixes**: `hotfix/description` - urgent production fixes
+
+## When to Use Each Command
+
+### Before Starting Work
+1. **`git status`** - Check current state
+2. **`git pull`** - Get latest changes
+3. **`git checkout -b feature/your-feature-name`** - Create feature branch
+
+### During Development
+1. **`git add .`** - Stage your changes
+2. **`git status`** - Verify what's staged
+3. **`bun run check:fix`** - Run code quality checks
+4. **`git commit -m "feat: add new feature"`** - Commit with descriptive message
+
+### After Completing Work
+1. **`git push`** - Push to remote repository
+2. **`git checkout main`** - Switch back to main branch
+3. **`git pull`** - Get latest changes
+4. **`git merge feature/your-feature-name`** - Merge your feature
+
+## Commit Message Guidelines
+
+### Conventional Commits Format
+- **`feat:`** - New features
+- **`fix:`** - Bug fixes
+- **`docs:`** - Documentation changes
+- **`style:`** - Code style changes (formatting, etc.)
+- **`refactor:`** - Code refactoring
+- **`test:`** - Adding or updating tests
+- **`chore:`** - Maintenance tasks
+
+### Examples
+- `feat: add user authentication with Clerk`
+- `fix: resolve RTL layout issue on Hebrew text`
+- `docs: update README with setup instructions`
+- `style: format code with Biome`
+- `refactor: extract common components`
+- `feat(auth): add Hebrew RTL support to sign-in page`
+- `fix(convex): resolve user creation validation error`
+
+## Pre-commit Checklist
+
+1. **Code Quality**: Run `bun run check:fix`
+2. **TypeScript**: Ensure no type errors
+3. **RTL Testing**: Verify Hebrew/RTL layout works
+4. **Authentication**: Test auth flows if applicable
+5. **Dependencies**: Update lockfile if needed
+
+## Safety Guidelines
+
+### Never Automate These Commands
+- **`git reset --hard`** - Destructive reset
+- **`git rebase`** - Complex history rewriting
+- **`git push --force`** - Force push (dangerous)
+- **`git clean -fd`** - Remove untracked files
+- **`git checkout -- <file>`** - Discard changes
+
+### Always Ask Before Running
+- Commands that modify history
+- Commands that delete files or branches
+- Commands that force push
+- Commands that reset changes
+
+## Troubleshooting Common Issues
+
+### When Git Says "Your branch is ahead"
+- **`git push`** - Push your commits to remote
+
+### When Git Says "Your branch is behind"
+- **`git pull`** - Pull latest changes from remote
+
+### When You Have Uncommitted Changes
+- **`git stash`** - Temporarily save changes
+- **`git stash pop`** - Restore stashed changes
+
+### When You Want to Undo Last Commit
+- **`git reset --soft HEAD~1`** - Undo commit but keep changes staged
+- **`git reset HEAD~1`** - Undo commit and unstage changes
+
+## Branch Protection
+
+- Require pull request reviews
+- Require status checks to pass
+- Require branches to be up to date
+- Restrict pushes to main branch
+
+## Merge Strategy
+
+- Use "Squash and merge" for feature branches
+- Use "Merge commit" for important features
+- Always clean up feature branches after merge
+
+## Environment Variables
+
+- Never commit `.env` files
+- Use `.env.example` for required variables
+- Document all environment variables in setup guides
+
+## Best Practices
+
+- **Small Commits**: Make frequent, small commits
+- **Descriptive Messages**: Write clear commit messages
+- **Feature Branches**: Use branches for new features
+- **Code Quality**: Run `bun run check:fix` before committing
+- **Regular Pushes**: Push changes regularly to avoid conflicts
+- **Backup Work**: Never work directly on main branch for features

@@ -1,0 +1,52 @@
+---
+description: Authentication and Convex backend integration patterns
+---
+
+# Authentication and Backend Integration
+
+## Clerk Authentication
+
+- **Provider Setup**: [components/providers/providers.tsx](mdc:components/providers/providers.tsx) wraps app with ClerkProvider
+- **Auth Pages**: [app/(auth)/sign-in/page.tsx](mdc:app/(auth)/sign-in/page.tsx) and [app/(auth)/sign-up/page.tsx](mdc:app/(auth)/sign-up/page.tsx)
+- **Environment Variables**: 
+  - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - `CLERK_SECRET_KEY`
+
+## Convex Backend
+
+- **Schema**: [convex/schema.ts](mdc:convex/schema.ts) defines database tables and indexes
+- **Integration**: ConvexProviderWithClerk connects Clerk auth with Convex
+- **Environment Variables**: `NEXT_PUBLIC_CONVEX_URL`
+
+## Database Schema Patterns
+
+```typescript
+// Example from schema.ts
+users: defineTable({
+  clerkId: v.string(),
+  email: v.string(),
+  fullName: v.optional(v.string()),
+  role: v.union(v.literal("admin"), v.literal("user")),
+  isActive: v.boolean(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_clerk_id", ["clerkId"])
+  .index("by_email", ["email"])
+  .index("by_role", ["role"])
+```
+
+## Authentication Flow
+
+1. User signs in through Clerk
+2. Clerk provides JWT token
+3. Convex validates token and creates/updates user record
+4. User data synced between Clerk and Convex
+
+## Best Practices
+
+- Always validate user authentication before database operations
+- Use Convex mutations for write operations
+- Use Convex queries for read operations
+- Implement proper error handling for auth failures
+- Use TypeScript types for Convex data models

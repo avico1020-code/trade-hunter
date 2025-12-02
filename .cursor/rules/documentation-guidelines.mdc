@@ -1,0 +1,56 @@
+---
+description: Guidelines for when to fetch web development documentation
+---
+
+# Documentation Guidelines
+
+## When to Fetch Documentation
+
+### Next.js & Web Development Documentation
+
+Fetch Next.js and web development documentation when:
+
+1. **Next.js Specific Features**:
+   - App Router patterns and conventions
+   - Server Components vs Client Components
+   - Middleware configuration
+   - API routes and server actions
+   - Build optimization and deployment
+
+2. **Web Development Patterns**:
+   - Responsive design techniques
+   - Performance optimization for web
+   - SEO best practices
+   - Accessibility (a11y) guidelines
+   - Browser compatibility issues
+
+3. **Advanced Web Topics**:
+   - Progressive Web App (PWA) features
+   - Web APIs and browser capabilities
+   - Security best practices
+   - Caching strategies
+   - Internationalization (i18n)
+
+### When NOT to Fetch Documentation
+
+- General React patterns (use standard React docs)
+- TypeScript questions (use TypeScript docs)
+- CSS/styling questions (use Tailwind docs)
+- Authentication patterns (use Clerk docs)
+- Backend questions (use Convex docs)
+
+## Documentation Sources
+
+- **Next.js**: Official Next.js documentation and examples
+- **React**: React documentation for general React patterns
+- **TypeScript**: TypeScript handbook for type-related questions
+- **Tailwind CSS**: Tailwind documentation for styling
+- **Web Standards**: MDN Web Docs for web APIs and standards
+
+## Best Practices
+
+- Always check official documentation first
+- Look for recent updates and breaking changes
+- Verify compatibility with current versions
+- Cross-reference multiple sources when needed
+- Focus on official sources over community tutorials

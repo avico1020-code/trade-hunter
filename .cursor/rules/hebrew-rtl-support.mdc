@@ -1,0 +1,53 @@
+---
+description: Hebrew and RTL (Right-to-Left) text support guidelines
+---
+
+# Hebrew RTL Support
+
+## Configuration
+
+- **Root Layout**: [app/layout.tsx](mdc:app/layout.tsx) sets `lang="he"` and `dir="rtl"`
+- **Metadata**: Hebrew title and description in layout
+- **CSS**: RTL-aware styling with Tailwind CSS
+
+## RTL Best Practices
+
+### Layout Considerations
+
+- Use `dir="rtl"` on HTML element
+- Consider RTL when positioning elements (left/right margins, padding)
+- Test layouts in both LTR and RTL modes
+- Use logical properties when possible (`margin-inline-start` vs `margin-left`)
+
+### Text and Content
+
+- Set `lang="he"` for Hebrew content
+- Use proper Hebrew fonts and typography
+- Consider text direction in UI components
+- Test with Hebrew placeholder text
+
+### Component Development
+
+```typescript
+// RTL-aware component example
+export default function RTLComponent() {
+  return (
+    <div className="text-right rtl:text-right ltr:text-left">
+      {/* Hebrew content */}
+    </div>
+  );
+}
+```
+
+### CSS Classes
+
+- Use Tailwind's RTL utilities: `rtl:` and `ltr:` prefixes
+- Consider using logical properties in custom CSS
+- Test spacing and alignment in RTL mode
+
+## Testing RTL
+
+- Always test components with Hebrew text
+- Verify layout works correctly in RTL mode
+- Check form inputs and interactive elements
+- Ensure proper text alignment and spacing

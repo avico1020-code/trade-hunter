@@ -1,0 +1,137 @@
+---
+globs: *.css,*.scss,*.tsx,*.jsx
+description: Styling and UI component guidelines
+---
+
+# Styling and UI Guidelines
+
+## Tailwind CSS Configuration
+
+- **Version**: Tailwind CSS v4 with PostCSS
+- **Configuration**: [tailwind.config.ts](mdc:tailwind.config.ts) with ShadCN color system
+- **CSS Variables**: HSL color system with CSS custom properties
+- **RTL Support**: Use `rtl:` and `ltr:` prefixes for directional styles
+
+## ShadCN UI Components
+
+- **Configuration**: [components.json](mdc:components.json) for ShadCN setup
+- **Components**: Located in [components/ui/](mdc:components/ui/) directory
+- **Available Components**: Button, Card, Input, Label, Dialog
+- **Installation**: Use `bunx shadcn@latest add <component>` to add new components
+
+## Color System
+
+### CSS Variables (HSL Format)
+```css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --secondary: 210 40% 96%;
+  --muted: 210 40% 96%;
+  --accent: 210 40% 96%;
+  --destructive: 0 84.2% 60.2%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --radius: 0.5rem;
+}
+```
+
+### Dark Mode Support
+- Automatic dark mode with `.dark` class
+- All colors have dark mode variants
+- Use `dark:` prefix for dark mode specific styles
+
+## Component Patterns
+
+### ShadCN Component Usage
+```tsx
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export default function ExampleComponent() {
+  return (
+    <Card className="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle>Example</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" placeholder="Enter your email" />
+        </div>
+        <Button className="w-full">Submit</Button>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### RTL-Aware Styling
+```tsx
+// Use logical properties for RTL support
+<div className="text-right rtl:text-right ltr:text-left">
+  <div className="ml-4 rtl:ml-0 rtl:mr-4">
+    {/* Content */}
+  </div>
+</div>
+```
+
+### Custom Component with Variants
+```tsx
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border border-input hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "underline-offset-4 hover:underline text-primary",
+      },
+      size: {
+        default: "h-10 py-2 px-4",
+        sm: "h-9 px-3 rounded-md",
+        lg: "h-11 px-8 rounded-md",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+interface CustomButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export function CustomButton({ className, variant, size, ...props }: CustomButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
+```
+
+## Best Practices
+
+- **Use ShadCN Components**: Prefer ShadCN components over custom implementations
+- **CSS Variables**: Use semantic color names (primary, secondary, etc.)
+- **Responsive Design**: Use Tailwind's responsive prefixes (sm:, md:, lg:, xl:)
+- **RTL Support**: Always test and consider RTL layouts
+- **Dark Mode**: Design with both light and dark themes in mind
+- **Accessibility**: ShadCN components include proper ARIA attributes
+- **Performance**: Use Tailwind's utility classes for optimal bundle size
+- **Consistency**: Follow the established design system and spacing scale
