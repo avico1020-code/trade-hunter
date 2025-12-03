@@ -1,6 +1,6 @@
 // lib/scanner/trade-pattern-scanner.ts
 
-import { Candle } from "../strategies/double-top";
+import type { Candle } from "../strategies/types";
 
 // ============ 1) סוגי נתונים כלליים ============
 
@@ -37,7 +37,12 @@ export interface PatternFoundEvent {
 }
 
 // פונקציה שהמערך הסוחר מספק – מה לעשות כשיש זיהוי תבנית
-export type OnPatternFoundHandler = (event: PatternFoundEvent) => void;
+// Receives event, candles, and indicators for execution engine
+export type OnPatternFoundHandler = (
+  event: PatternFoundEvent,
+  candles: Candle[],
+  indicators?: IndicatorSnapshot
+) => void;
 
 // לוגינג בסיסי (אופציונלי)
 export interface ScannerLogger {
@@ -56,11 +61,12 @@ export interface RealTimeDataClient {
    *
    * @param symbol המניה
    * @param onUpdate נקרא בכל עדכון (למשל כל נר חדש / שינוי ב־Candle)
+   * @returns Function to unsubscribe/cleanup
    */
   subscribeCandles(
     symbol: string,
     onUpdate: (candles: Candle[], indicators: IndicatorSnapshot) => void
-  ): void;
+  ): () => void; // Return unsubscribe function
 }
 
 // מקור מידע למאסטר – איך מקבלים את רשימת המניות הטובות למסחר
@@ -74,6 +80,9 @@ export interface MasterScoringClient {
 
 // ============ 3) ממשק אחיד לכל אסטרטגיית זיהוי תבנית ============
 
+import type { StrategyState } from "../strategies/strategy-state";
+import type { EntrySignal, ExitSignal, StopLevels } from "../strategies/types";
+
 export interface IPatternStrategy {
   name: string; // "DOUBLE_TOP", "BREAKOUT" וכו'
   /**
@@ -86,12 +95,73 @@ export interface IPatternStrategy {
 
   /**
    * זיהוי התבנית (חלק "זיהוי" של האסטרטגיה).
-   * לא מבצע כניסה/יציאה – רק אומר האם התבנית קיימת ומה מצבה.
+   * משמש רק את הסורק - לא מבצע כניסה/יציאה.
+   * רק אומר האם התבנית קיימת ומה מצבה.
    */
   detectPattern(
     candles: Candle[],
     indicators?: IndicatorSnapshot
   ): PatternDetectionResult;
+
+  /**
+   * Entry First - בדיקת תנאי כניסה ראשונה
+   * משמש את Execution Engine
+   */
+  entryFirst(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): EntrySignal;
+
+  /**
+   * Entry Second - בדיקת תנאי כניסה שניה
+   * משמש את Execution Engine
+   */
+  entrySecond(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): EntrySignal;
+
+  /**
+   * Exit First - בדיקת תנאי יציאה ראשונה
+   * משמש את Execution Engine
+   */
+  exitFirst(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState: StrategyState
+  ): ExitSignal;
+
+  /**
+   * Exit Second - בדיקת תנאי יציאה שניה
+   * משמש את Execution Engine
+   */
+  exitSecond(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState: StrategyState
+  ): ExitSignal;
+
+  /**
+   * Stop Levels for Entry 1
+   * משמש את Execution Engine לחישוב סטופים לכניסה ראשונה
+   */
+  stopsForEntry1(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): StopLevels | null;
+
+  /**
+   * Stop Levels for Entry 2
+   * משמש את Execution Engine לחישוב סטופים לכניסה שניה
+   */
+  stopsForEntry2(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): StopLevels | null;
 }
 
 // ============ 4) קונפיג של סורק המסחר ============
@@ -130,6 +200,10 @@ export interface TradePatternScannerConfig {
 export class TradePatternScanner {
   // map עבור אנטי־ספאם: "AAPL-DOUBLE_TOP" → timestamp
   private lastDetection: Record<string, number> = {};
+
+  // Dynamic universe management: track active subscriptions
+  private activeSubscriptions = new Map<string, () => void>();
+  private subscribedSymbols = new Set<string>();
 
   constructor(
     private masterClient: MasterScoringClient,
@@ -275,21 +349,93 @@ export class TradePatternScanner {
         minScore: this.config.minMasterScore,
       });
 
-      // Validate each symbol info before subscribing
-      for (const info of symbolsToScan) {
-        if (!this.validateSymbolInfo(info)) {
-          this.logWarn("[TradePatternScanner] Invalid symbol info, skipping", {
-            symbol: info?.symbol,
-            info,
-          });
-          continue;
-        }
-        this.subscribeSymbol(info);
-      }
+      // Update dynamic universe
+      await this.updateSymbolUniverse(symbolsToScan);
     } catch (err) {
       this.logError("[TradePatternScanner] start() failed", { error: err });
       throw err;
     }
+  }
+
+  /**
+   * Update symbol universe dynamically
+   * - Unsubscribes from symbols that left TOP N
+   * - Subscribes to new symbols that entered TOP N
+   * Called whenever Master Scoring updates the TOP N list
+   */
+  async updateSymbolUniverse(newTopN: MasterSymbolInfo[]): Promise<void> {
+    const currentSymbols = new Set(this.subscribedSymbols);
+    const newSymbols = new Set(newTopN.map((s) => s.symbol));
+
+    // Unsubscribe from symbols that left TOP N
+    for (const symbol of currentSymbols) {
+      if (!newSymbols.has(symbol)) {
+        this.unsubscribeSymbol(symbol);
+        this.logInfo("[TradePatternScanner] Unsubscribed from symbol (left TOP N)", {
+          symbol,
+        });
+      }
+    }
+
+    // Subscribe to new symbols that entered TOP N
+    for (const info of newTopN) {
+      if (!currentSymbols.has(info.symbol)) {
+        if (!this.validateSymbolInfo(info)) {
+          this.logWarn(
+            "[TradePatternScanner] Invalid symbol info, skipping",
+            {
+              symbol: info?.symbol,
+              info,
+            }
+          );
+          continue;
+        }
+        this.subscribeSymbol(info);
+        this.logInfo("[TradePatternScanner] Subscribed to symbol (entered TOP N)", {
+          symbol: info.symbol,
+          masterScore: info.masterScore,
+          direction: info.direction,
+        });
+      }
+    }
+  }
+
+  /**
+   * Unsubscribe from a symbol and cleanup
+   */
+  private unsubscribeSymbol(symbol: string): void {
+    const unsubscribe = this.activeSubscriptions.get(symbol);
+    if (unsubscribe) {
+      unsubscribe();
+      this.activeSubscriptions.delete(symbol);
+    }
+    this.subscribedSymbols.delete(symbol);
+
+    // Clean debounce map for this symbol
+    for (const key of Object.keys(this.lastDetection)) {
+      if (key.startsWith(`${symbol}::`)) {
+        delete this.lastDetection[key];
+      }
+    }
+  }
+
+  /**
+   * Stop scanner and cleanup all subscriptions
+   */
+  stop(): void {
+    this.logInfo("[TradePatternScanner] Stopping scanner, cleaning up subscriptions");
+
+    // Unsubscribe from all symbols
+    for (const symbol of Array.from(this.subscribedSymbols)) {
+      this.unsubscribeSymbol(symbol);
+    }
+
+    // Clear debounce map
+    this.lastDetection = {};
+    this.subscribedSymbols.clear();
+    this.activeSubscriptions.clear();
+
+    this.logInfo("[TradePatternScanner] Scanner stopped");
   }
 
   /**
@@ -318,13 +464,19 @@ export class TradePatternScanner {
   private subscribeSymbol(info: MasterSymbolInfo): void {
     const { symbol } = info;
 
+    // Don't subscribe if already subscribed
+    if (this.subscribedSymbols.has(symbol)) {
+      return;
+    }
+
     this.logInfo("[TradePatternScanner] subscribing to symbol", {
       symbol,
       masterDirection: info.direction,
       masterScore: info.masterScore,
     });
 
-    this.dataClient.subscribeCandles(symbol, (candles, indicators) => {
+    // Subscribe and store unsubscribe function
+    const unsubscribe = this.dataClient.subscribeCandles(symbol, (candles, indicators) => {
       // Validate candles structure
       if (!this.validateCandles(candles)) {
         this.logWarn("[TradePatternScanner] Invalid candles received", {
@@ -411,9 +563,14 @@ export class TradePatternScanner {
           masterScore: info.masterScore,
         });
 
-        this.onPatternFound(event);
+        // Pass event along with candles and indicators to execution engine
+        this.onPatternFound(event, candles, indicators);
       }
     });
+
+    // Store subscription and mark as subscribed
+    this.activeSubscriptions.set(symbol, unsubscribe);
+    this.subscribedSymbols.add(symbol);
   }
 
   /**

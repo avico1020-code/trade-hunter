@@ -26,7 +26,9 @@ import {
   MasterSymbolInfo,
   IPatternStrategy,
 } from "../scanner/trade-pattern-scanner";
-import { Candle } from "../strategies/double-top";
+import type { Candle } from "../strategies/types";
+import type { StrategyState, StrategyPhase } from "../strategies/strategy-state";
+import { StrategyOrchestrator } from "../engine/strategy-orchestrator";
 
 export type ExecutionMode = "LIVE" | "DEMO" | "BACKTEST";
 export type TradeDirection = "LONG" | "SHORT";
@@ -197,6 +199,10 @@ export class ExecutionEngine {
   private closedTrades: ClosedTrade[] = [];
   private processingLock = false; // Simple lock for position modifications
 
+  // Order tracking
+  private pendingOrders = new Map<string, OrderStatusInfo>();
+  private orderHistory: OrderStatusInfo[] = [];
+
   // Risk tracking
   private dailyPnL = 0;
   private dailyResetDate = new Date().toDateString();
@@ -208,7 +214,8 @@ export class ExecutionEngine {
   constructor(
     private config: ExecutionEngineConfig,
     private ibkrClient: IBKRClient | null,
-    private strategyMap: Map<string, IPatternStrategy> // לשימוש עתידי כשנרצה יציאות לפי אסטרטגיה
+    private strategyMap: Map<string, IPatternStrategy>,
+    private orchestrator: StrategyOrchestrator
   ) {
     this.validateConfig();
     this.accountPeak = config.totalAccountValue; // Initialize peak to current value
@@ -275,8 +282,13 @@ export class ExecutionEngine {
 
   // -------------------------------------------------
   // 1) נקודת כניסה ראשית – סיגנל מהסורק
+  // Execution Engine receives PatternFoundEvent and manages trade lifecycle
   // -------------------------------------------------
-  async onPatternEvent(event: PatternFoundEvent): Promise<void> {
+  async onPatternEvent(
+    event: PatternFoundEvent,
+    candles: Candle[],
+    indicators?: IndicatorSnapshot
+  ): Promise<void> {
     // Wrap in try-catch for error handling
     try {
       return await this.withLock(async () => {
@@ -293,142 +305,98 @@ export class ExecutionEngine {
           return;
         }
 
-        const nowHHMM = this.getTimeHHMM();
-
-        // 1. לא פותחים עסקאות חדשות אחרי זמן הכניסה האחרון
-        if (nowHHMM > this.config.latestEntryTime) {
-          return;
-        }
-
-        // 2. אם כבר יש פוזיציה על הסימול הזה – כרגע לא מוסיפים עוד אחת
-        if (this.findPositionBySymbol(event.symbol)) {
-          return;
-        }
-
-        // 3. נוודא שיש לנו מחיר כניסה וסטופ מהאסטרטגיה
-        const entryPrice = event.patternState.entryPrice;
-        const stopLoss = event.patternState.stopLoss;
-
-        // Validate entry price and stop loss exist
-        if (entryPrice == null || stopLoss == null) {
-          // בלי Entry ו-Stop אי אפשר לנהל סיכון → מדלגים
-          return;
-        }
-
-        // Validate entry price is valid number
-        if (!isFinite(entryPrice) || entryPrice <= 0) {
-          console.warn("[ExecutionEngine] Invalid entryPrice in pattern event", {
-            symbol: event.symbol,
-            entryPrice,
+        // 0.3. Get strategy and current state
+        const strategy = this.strategyMap.get(event.strategyName);
+        if (!strategy) {
+          console.warn("[ExecutionEngine] Strategy not found", {
+            strategyName: event.strategyName,
           });
           return;
         }
 
-        // Validate stop loss is valid number
-        if (!isFinite(stopLoss) || stopLoss <= 0) {
-          console.warn("[ExecutionEngine] Invalid stopLoss in pattern event", {
-            symbol: event.symbol,
-            stopLoss,
-          });
+        // Get or create state from orchestrator
+        let currentState = this.orchestrator.getState(
+          event.strategyName,
+          event.symbol
+        );
+
+        // If state doesn't exist and pattern was found, create initial state
+        if (!currentState && event.patternState.patternFound) {
+          currentState = this.orchestrator.getOrCreateState(
+            event.strategyName,
+            event.symbol
+          );
+          // Update state with pattern data
+          currentState = this.orchestrator.updateState(
+            event.strategyName,
+            event.symbol,
+            {
+              phase: "entry1",
+              custom: {
+                firstPeakIdx: event.patternState.firstPeakIdx,
+                secondPeakIdx: event.patternState.secondPeakIdx,
+                troughIdx: event.patternState.troughIdx,
+                neckline: event.patternState.neckline,
+                confirmCount: event.patternState.confirmCount,
+                earlyHeadsUp: event.patternState.earlyHeadsUp,
+                secondPeakHigh: event.patternState.secondPeakHigh,
+              },
+            }
+          );
+        }
+
+        // If state is invalidated, skip processing
+        if (currentState?.invalidated) {
           return;
         }
 
-        // 4. דיירקשן טרייד
-        const direction = this.resolveDirection(event);
-        if (!direction) {
-          return;
-        }
+        // State machine logic based on current phase
+        const phase = currentState?.phase || "search";
 
-        // Validate stop loss is in correct direction (above entry for SHORT, below for LONG)
-        if (direction === "LONG" && stopLoss >= entryPrice) {
-          console.warn("[ExecutionEngine] Invalid stop loss for LONG position", {
-            symbol: event.symbol,
-            entryPrice,
-            stopLoss,
-          });
-          return;
-        }
-        if (direction === "SHORT" && stopLoss <= entryPrice) {
-          console.warn("[ExecutionEngine] Invalid stop loss for SHORT position", {
-            symbol: event.symbol,
-            entryPrice,
-            stopLoss,
-          });
-          return;
-        }
-
-        // 5. בניית TradeSetup (כולל חישוב סיכון ומיידע מהמאסטר)
-        const setup = this.buildTradeSetupFromPattern(event, entryPrice, stopLoss, direction);
-
-        // Validate setup
-        if (setup.riskPerShare <= 0 || setup.quantity <= 0) {
-          console.warn("[ExecutionEngine] Invalid setup calculated", {
-            symbol: event.symbol,
-            riskPerShare: setup.riskPerShare,
-            quantity: setup.quantity,
-          });
-          return;
-        }
-
-        // Validate setup price values
-        if (!isFinite(setup.entryPrice) || setup.entryPrice <= 0) {
-          console.warn("[ExecutionEngine] Invalid entryPrice in setup", {
-            symbol: event.symbol,
-            entryPrice: setup.entryPrice,
-          });
-          return;
-        }
-
-        // Note: setup uses stopLoss, not stopPrice
-        if (!isFinite(setup.stopLoss) || setup.stopLoss <= 0) {
-          console.warn("[ExecutionEngine] Invalid stopLoss in setup", {
-            symbol: event.symbol,
-            stopLoss: setup.stopLoss,
-          });
-          return;
-        }
-
-        // 6. מגבלת עסקאות במקביל:
-        if (this.openPositions.length >= this.config.maxConcurrentTrades) {
-          const reallocated = this.tryRelocation(setup);
-          if (!reallocated) {
-            // לא סגרנו עסקה קיימת → אין מקום → מדלגים
-            return;
+        if (phase === "search") {
+          // Pattern found, check entry1 conditions
+          if (!event.patternState.patternFound) {
+            return; // No pattern, continue searching
           }
+
+          await this.handleEntry1Phase(
+            event,
+            strategy,
+            currentState!,
+            candles,
+            indicators
+          );
+        } else if (phase === "entry1") {
+          // Manage entry1 position, check exit1 and entry2
+          await this.handleEntry1ActivePhase(
+            event,
+            strategy,
+            currentState!,
+            candles,
+            indicators
+          );
+        } else if (phase === "entry2") {
+          // Manage entry2 position, check exit2
+          await this.handleEntry2ActivePhase(
+            event,
+            strategy,
+            currentState!,
+            candles,
+            indicators
+          );
+        } else if (phase === "active") {
+          // Active position - check exit conditions
+          await this.handleActivePositionPhase(
+            event,
+            strategy,
+            currentState!,
+            candles,
+            indicators
+          );
+        } else if (phase === "exit") {
+          // Exit phase - close position and reset
+          await this.handleExitPhase(event, strategy, currentState!);
         }
-
-        // 7. מגבלת חשיפה כוללת
-        if (!this.canOpenNotional(setup)) {
-          return;
-        }
-
-        // 7.1. Check position size limit per symbol
-        if (this.config.maxPositionSizePerSymbol) {
-          const notional = setup.quantity * setup.entryPrice;
-          if (notional > this.config.maxPositionSizePerSymbol) {
-            console.warn("[ExecutionEngine] Position size exceeds per-symbol limit", {
-              symbol: event.symbol,
-              notional,
-              limit: this.config.maxPositionSizePerSymbol,
-            });
-            return;
-          }
-        }
-
-        // 8. ביצוע פקודת מרקט (LIVE/DEMO/BACKTEST)
-        const executed = await this.executeOrder(setup);
-
-        if (!executed) {
-          // Track failure for circuit breaker
-          this.recordOrderFailure();
-          return;
-        }
-
-        // Reset failure counter on success
-        this.consecutiveFailures = 0;
-
-        // 9. פתיחת פוזיציה בפועל
-        this.openPositions.push(this.createOpenPosition(setup, executed.avgFillPrice));
       });
     } catch (error) {
       console.error("[ExecutionEngine] onPatternEvent failed", {
@@ -440,11 +408,386 @@ export class ExecutionEngine {
     }
   }
 
+  /**
+   * Handle entry1 phase: Check entry1 conditions and execute if triggered
+   */
+  private async handleEntry1Phase(
+    event: PatternFoundEvent,
+    strategy: IPatternStrategy,
+    state: StrategyState,
+    candles: Candle[],
+    indicators?: IndicatorSnapshot
+  ): Promise<void> {
+    const nowHHMM = this.getTimeHHMM();
+
+    // 1. לא פותחים עסקאות חדשות אחרי זמן הכניסה האחרון
+    if (nowHHMM > this.config.latestEntryTime) {
+      return;
+    }
+
+    // 2. Check if position already exists for this strategy+symbol
+    const existingPosition = this.findPositionByStrategyAndSymbol(
+      event.strategyName,
+      event.symbol
+    );
+    if (existingPosition) {
+      return; // Already have position from this strategy
+    }
+
+    // 3. Check entry1 conditions using strategy method
+    const entrySignal = strategy.entryFirst(
+      candles,
+      event.patternState,
+      state
+    );
+
+    if (!entrySignal.enter || !entrySignal.price) {
+      return; // Entry conditions not met
+    }
+
+    // 4. Get stop levels from strategy
+    const stops = strategy.stopsForEntry1(
+      candles,
+      event.patternState,
+      state
+    );
+
+    if (!stops || !stops.initial) {
+      console.warn("[ExecutionEngine] No stop levels from strategy", {
+        symbol: event.symbol,
+        strategy: event.strategyName,
+      });
+      return;
+    }
+
+    const entryPrice = entrySignal.price;
+    const stopLoss = stops.initial;
+
+    // 5. Resolve direction
+    const direction = this.resolveDirection(event);
+    if (!direction) {
+      return;
+    }
+
+    // 6. Validate stop loss direction
+    if (direction === "LONG" && stopLoss >= entryPrice) {
+      console.warn("[ExecutionEngine] Invalid stop loss for LONG", {
+        symbol: event.symbol,
+        entryPrice,
+        stopLoss,
+      });
+      return;
+    }
+    if (direction === "SHORT" && stopLoss <= entryPrice) {
+      console.warn("[ExecutionEngine] Invalid stop loss for SHORT", {
+        symbol: event.symbol,
+        entryPrice,
+        stopLoss,
+      });
+      return;
+    }
+
+    // 7. Build trade setup
+    const setup = this.buildTradeSetupFromEntry(
+      event,
+      entryPrice,
+      stopLoss,
+      direction
+    );
+
+    // 8. Validate setup
+    if (
+      !isFinite(setup.entryPrice) ||
+      setup.entryPrice <= 0 ||
+      !isFinite(setup.stopLoss) ||
+      setup.stopLoss <= 0 ||
+      setup.riskPerShare <= 0 ||
+      setup.quantity <= 0
+    ) {
+      console.warn("[ExecutionEngine] Invalid setup", {
+        symbol: event.symbol,
+        setup,
+      });
+      return;
+    }
+
+    // 9. Check concurrent trades limit
+    if (this.openPositions.length >= this.config.maxConcurrentTrades) {
+      const reallocated = this.tryRelocation(setup);
+      if (!reallocated) {
+        return; // No room for new trade
+      }
+    }
+
+    // 10. Check exposure limit
+    if (!this.canOpenNotional(setup)) {
+      return;
+    }
+
+    // 11. Check per-symbol position size limit
+    if (this.config.maxPositionSizePerSymbol) {
+      const notional = setup.quantity * setup.entryPrice;
+      if (notional > this.config.maxPositionSizePerSymbol) {
+        console.warn("[ExecutionEngine] Position size exceeds limit", {
+          symbol: event.symbol,
+          notional,
+          limit: this.config.maxPositionSizePerSymbol,
+        });
+        return;
+      }
+    }
+
+    // 12. Execute order
+    const executed = await this.executeOrder(setup);
+
+    if (!executed) {
+      this.recordOrderFailure();
+      return;
+    }
+
+    // Reset failure counter on success
+    this.consecutiveFailures = 0;
+
+    // 13. Create open position
+    const position = this.createOpenPosition(setup, executed.avgFillPrice);
+    this.openPositions.push(position);
+
+    // 14. Update strategy state
+    this.orchestrator.updateState(event.strategyName, event.symbol, {
+      phase: "entry1",
+      entry1Price: executed.avgFillPrice,
+      stopLoss: stops.initial,
+      custom: {
+        ...state.custom,
+        ...entrySignal.meta,
+      },
+    });
+  }
+
+  /**
+   * Handle entry1 active phase: Manage entry1 position, check exit1 and entry2
+   */
+  private async handleEntry1ActivePhase(
+    event: PatternFoundEvent,
+    strategy: IPatternStrategy,
+    state: StrategyState,
+    candles: Candle[],
+    indicators?: IndicatorSnapshot
+  ): Promise<void> {
+    // 1. Find existing position
+    const position = this.findPositionByStrategyAndSymbol(
+      event.strategyName,
+      event.symbol
+    );
+
+    if (!position) {
+      // Position doesn't exist but state says entry1 - reset state
+      this.orchestrator.resetState(event.strategyName, event.symbol);
+      return;
+    }
+
+    // 2. Update position price (if needed)
+    const lastCandle = candles[candles.length - 1];
+    if (lastCandle) {
+      await this.onMarketPriceUpdate(
+        event.symbol,
+        lastCandle.close,
+        candles,
+        indicators
+      );
+    }
+
+    // 3. Check exit1 conditions
+    const exitSignal = strategy.exitFirst(
+      candles,
+      event.patternState,
+      state
+    );
+
+    if (exitSignal.exit) {
+      // Close entry1 position
+      await this.closePosition(position, exitSignal.price || position.lastPrice, "strategy-exit");
+      this.orchestrator.updateState(event.strategyName, event.symbol, {
+        phase: "exit",
+      });
+      return;
+    }
+
+    // 4. Check entry2 conditions
+    const entry2Signal = strategy.entrySecond(
+      candles,
+      event.patternState,
+      state
+    );
+
+    if (entry2Signal.enter && entry2Signal.price) {
+      // Entry2 triggered - this will be handled in next phase
+      const stops2 = strategy.stopsForEntry2(
+        candles,
+        event.patternState,
+        state
+      );
+
+      if (stops2 && stops2.initial) {
+        this.orchestrator.updateState(event.strategyName, event.symbol, {
+          phase: "entry2",
+          entry2Price: entry2Signal.price,
+          custom: {
+            ...state.custom,
+            ...entry2Signal.meta,
+            failedMAIdx: entry2Signal.meta?.failedIdx,
+          },
+        });
+      }
+    }
+  }
+
+  /**
+   * Handle entry2 active phase: Manage entry2 position, check exit2
+   */
+  private async handleEntry2ActivePhase(
+    event: PatternFoundEvent,
+    strategy: IPatternStrategy,
+    state: StrategyState,
+    candles: Candle[],
+    indicators?: IndicatorSnapshot
+  ): Promise<void> {
+    // 1. Find existing position
+    const position = this.findPositionByStrategyAndSymbol(
+      event.strategyName,
+      event.symbol
+    );
+
+    if (!position) {
+      // Position doesn't exist - move to active phase or reset
+      if (state.entry1Price && state.entry2Price) {
+        this.orchestrator.updateState(event.strategyName, event.symbol, {
+          phase: "active",
+        });
+      } else {
+        this.orchestrator.resetState(event.strategyName, event.symbol);
+      }
+      return;
+    }
+
+    // 2. Update position price
+    const lastCandle = candles[candles.length - 1];
+    if (lastCandle) {
+      await this.onMarketPriceUpdate(
+        event.symbol,
+        lastCandle.close,
+        candles,
+        indicators
+      );
+    }
+
+    // 3. Check exit2 conditions
+    const exitSignal = strategy.exitSecond(
+      candles,
+      event.patternState,
+      state
+    );
+
+    if (exitSignal.exit) {
+      await this.closePosition(
+        position,
+        exitSignal.price || position.lastPrice,
+        "strategy-exit"
+      );
+      this.orchestrator.updateState(event.strategyName, event.symbol, {
+        phase: "exit",
+      });
+      return;
+    }
+
+    // 4. If both entries executed, move to active phase
+    if (state.entry1Price && state.entry2Price && state.phase !== "active") {
+      this.orchestrator.updateState(event.strategyName, event.symbol, {
+        phase: "active",
+      });
+    }
+  }
+
+  /**
+   * Handle active position phase: Check exit conditions
+   */
+  private async handleActivePositionPhase(
+    event: PatternFoundEvent,
+    strategy: IPatternStrategy,
+    state: StrategyState,
+    candles: Candle[],
+    indicators?: IndicatorSnapshot
+  ): Promise<void> {
+    const position = this.findPositionByStrategyAndSymbol(
+      event.strategyName,
+      event.symbol
+    );
+
+    if (!position) {
+      // Position closed somehow - reset state
+      this.orchestrator.resetState(event.strategyName, event.symbol);
+      return;
+    }
+
+    // Update position price
+    const lastCandle = candles[candles.length - 1];
+    if (lastCandle) {
+      await this.onMarketPriceUpdate(
+        event.symbol,
+        lastCandle.close,
+        candles,
+        indicators
+      );
+    }
+
+    // Check exit conditions (use exit1 or exit2 based on which entry is active)
+    // For simplicity, check both
+    const exit1Signal = strategy.exitFirst(candles, event.patternState, state);
+    const exit2Signal = strategy.exitSecond(candles, event.patternState, state);
+
+    if (exit1Signal.exit || exit2Signal.exit) {
+      const exitPrice =
+        exit1Signal.price || exit2Signal.price || position.lastPrice;
+      await this.closePosition(position, exitPrice, "strategy-exit");
+      this.orchestrator.updateState(event.strategyName, event.symbol, {
+        phase: "exit",
+      });
+    }
+  }
+
+  /**
+   * Handle exit phase: Close position and reset state
+   */
+  private async handleExitPhase(
+    event: PatternFoundEvent,
+    strategy: IPatternStrategy,
+    state: StrategyState
+  ): Promise<void> {
+    const position = this.findPositionByStrategyAndSymbol(
+      event.strategyName,
+      event.symbol
+    );
+
+    if (position) {
+      // Close any remaining position
+      await this.closePosition(position, position.lastPrice, "strategy-exit");
+    }
+
+    // Reset state after a delay (or immediately if needed)
+    // For now, reset immediately
+    this.orchestrator.resetState(event.strategyName, event.symbol);
+  }
+
   // -------------------------------------------------
   // 2) פונקציה שמקבלת עדכוני שוק (מחיר אחרון)
   //    אפשר לקרוא לה מתוך זרימת הנתונים (candles) באורקסטרטור
   // -------------------------------------------------
-  async onMarketPriceUpdate(symbol: string, lastPrice: number): Promise<void> {
+  async onMarketPriceUpdate(
+    symbol: string,
+    lastPrice: number,
+    candles?: Candle[],
+    indicators?: IndicatorSnapshot
+  ): Promise<void> {
     // Validate price - prevent NaN, Infinity, negative, or zero prices
     if (!isFinite(lastPrice) || lastPrice <= 0) {
       console.warn("[ExecutionEngine] Invalid price update ignored", {
@@ -456,23 +799,37 @@ export class ExecutionEngine {
 
     // Use lock for position updates
     await this.withLock(async () => {
-      const pos = this.findPositionBySymbol(symbol);
-      if (!pos) return;
+      // Find all positions for this symbol (multiple strategies possible)
+      const positions = this.openPositions.filter((p) => p.symbol === symbol);
 
-      pos.lastPrice = lastPrice;
+      for (const pos of positions) {
+        pos.lastPrice = lastPrice;
 
-      // עידכון bestPrice לפי כיוון
-      if (pos.direction === "LONG") {
-        pos.bestPrice = Math.max(pos.bestPrice, lastPrice);
-      } else {
-        pos.bestPrice = Math.min(pos.bestPrice, lastPrice);
+        // עידכון bestPrice לפי כיוון
+        if (pos.direction === "LONG") {
+          pos.bestPrice = Math.max(pos.bestPrice, lastPrice);
+        } else {
+          pos.bestPrice = Math.min(pos.bestPrice, lastPrice);
+        }
+
+        // Update trailing stop if profitable
+        this.updateTrailingStop(pos);
+
+        // Check strategy-specific exits if candles provided
+        if (candles && indicators) {
+          const strategy = this.strategyMap.get(pos.strategyName);
+          const state = this.orchestrator.getState(pos.strategyName, symbol);
+
+          if (strategy && state) {
+            // Get pattern state from event or reconstruct from candles
+            // For now, we'll need to get this from somewhere
+            // This will be handled when we integrate with scanner events
+          }
+        }
+
+        // לוגיקת סטופ לוס
+        this.checkStopLossExit(pos);
       }
-
-      // Update trailing stop if profitable
-      this.updateTrailingStop(pos);
-
-      // לוגיקת סטופ לוס
-      this.checkStopLossExit(pos);
     });
   }
 
@@ -949,6 +1306,66 @@ export class ExecutionEngine {
 
   private findPositionBySymbol(symbol: string): OpenPosition | undefined {
     return this.openPositions.find((p) => p.symbol === symbol);
+  }
+
+  /**
+   * Find position by strategy name and symbol
+   * Supports multiple strategies on same symbol
+   */
+  private findPositionByStrategyAndSymbol(
+    strategyName: string,
+    symbol: string
+  ): OpenPosition | undefined {
+    return this.openPositions.find(
+      (p) => p.symbol === symbol && p.strategyName === strategyName
+    );
+  }
+
+  /**
+   * Build TradeSetup from entry signal (used by new architecture)
+   */
+  private buildTradeSetupFromEntry(
+    event: PatternFoundEvent,
+    entryPrice: number,
+    stopLoss: number,
+    direction: TradeDirection
+  ): TradeSetup {
+    const distance = Math.abs(entryPrice - stopLoss);
+    const riskPerShare = distance;
+
+    const riskBudgetTotal =
+      this.config.totalAccountValue * (this.config.riskPerTradePct / 100);
+
+    let quantity =
+      riskPerShare > 0 ? Math.floor(riskBudgetTotal / riskPerShare) : 0;
+
+    // Limit by exposure per trade
+    const maxNotionalTotal =
+      this.config.totalAccountValue * (this.config.maxExposurePct / 100);
+    const maxNotionalPerTrade =
+      maxNotionalTotal / this.config.maxConcurrentTrades;
+
+    const notional = quantity * entryPrice;
+    if (notional > maxNotionalPerTrade && entryPrice > 0) {
+      quantity = Math.floor(maxNotionalPerTrade / entryPrice);
+    }
+
+    const riskDollars = quantity * riskPerShare;
+
+    return {
+      symbol: event.symbol,
+      strategyName: event.strategyName,
+      direction,
+      entryPrice,
+      stopLoss,
+      riskPerShare,
+      riskDollars,
+      quantity,
+      masterScore: event.master.masterScore,
+      masterDirection: event.master.direction as TradeDirection,
+      metadata: event.patternState,
+      createdAt: event.detectedAt,
+    };
   }
 
   // -------------------------------------------------

@@ -9,19 +9,7 @@ import {
   IndicatorSnapshot,
   PatternDetectionResult,
 } from "../scanner/trade-pattern-scanner";
-
-// =========================
-// טיפוסים בסיסיים
-// =========================
-
-export interface Candle {
-  time: string; // ISO או טיימסטמפ כמחרוזת
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+import type { Candle, EntrySignal, ExitSignal, StopLevels } from "./types";
 
 export type MAKind = "sma";
 
@@ -76,25 +64,7 @@ export interface PatternState {
   reason?: string;
 }
 
-export interface EntrySignal {
-  enter: boolean;
-  leg: 1 | 2; // כניסה ראשונה / שניה
-  price?: number; // מחיר הצעה לכניסה (לרוב close הנוכחי)
-  refIndices?: number[]; // אינדקסים רלוונטיים (לוג)
-  meta?: Record<string, any>;
-}
-
-export interface ExitSignal {
-  exit: boolean;
-  leg: 1 | 2;
-  reason?: string;
-  price?: number;
-}
-
-export interface StopLevels {
-  initial: number;
-  trailing?: number; // יעד עדכון אחרון (אם יש)
-}
+// Types moved to lib/strategies/types.ts to avoid circular imports
 
 // =========================
 // DoubleTopStrategy – אסטרטגיה "טהורה"
@@ -408,12 +378,23 @@ function smaAt(data: Candle[], w: number, i: number): number {
 // מממש IPatternStrategy עבור הסורק + מנוע הביצוע
 // =========================
 
+import type { StrategyState } from "./strategy-state";
+import type {
+  IPatternStrategy,
+  PatternDetectionResult,
+  IndicatorSnapshot,
+} from "../scanner/trade-pattern-scanner";
+
 export class DoubleTopPatternStrategy implements IPatternStrategy {
   name = "DOUBLE_TOP";
   direction: "LONG" | "SHORT" | "BOTH" = "SHORT";
 
   constructor(private impl: DoubleTopStrategy) {}
 
+  /**
+   * זיהוי תבנית - משמש רק את הסורק
+   * לא מחשב entry/exit - רק בודק אם התבנית קיימת
+   */
   detectPattern(
     candles: Candle[],
     indicators?: IndicatorSnapshot
@@ -424,19 +405,12 @@ export class DoubleTopPatternStrategy implements IPatternStrategy {
       return {
         patternFound: false,
         reason: base.reason,
+        basedOnClosedCandle: true,
         ...base,
       };
     }
 
-    const entry = this.impl.entryFirst(candles, base);
-    const last = candles[candles.length - 1];
-
-    const entryPrice =
-      entry.enter && entry.price != null ? entry.price : last.close;
-
-    const stops = this.impl.stopsForEntry1(candles, base);
-    const stopLoss = stops?.initial;
-
+    // Store pattern data in result for use by execution engine
     const secondPeakHigh =
       base.secondPeakIdx != null
         ? candles[base.secondPeakIdx].high
@@ -445,19 +419,167 @@ export class DoubleTopPatternStrategy implements IPatternStrategy {
     const out: PatternDetectionResult = {
       patternFound: true,
       reason: base.reason,
+      basedOnClosedCandle: true,
 
+      // Pattern structure data
       firstPeakIdx: base.firstPeakIdx,
       secondPeakIdx: base.secondPeakIdx,
       troughIdx: base.troughIdx,
       neckline: base.neckline,
       confirmCount: base.confirmCount,
       earlyHeadsUp: base.earlyHeadsUp,
-
-      entryPrice,
-      stopLoss,
       secondPeakHigh,
     };
 
     return out;
+  }
+
+  /**
+   * Entry First - בודק תנאי כניסה ראשונה
+   * נקרא על ידי Execution Engine
+   */
+  entryFirst(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): EntrySignal {
+    // Convert PatternDetectionResult to PatternState for internal logic
+    const basePatternState: PatternState = {
+      patternFound: patternState.patternFound,
+      firstPeakIdx: patternState.firstPeakIdx,
+      secondPeakIdx: patternState.secondPeakIdx,
+      troughIdx: patternState.troughIdx,
+      neckline: patternState.neckline,
+      confirmCount: patternState.confirmCount,
+      earlyHeadsUp: patternState.earlyHeadsUp,
+      reason: patternState.reason,
+    };
+
+    return this.impl.entryFirst(candles, basePatternState);
+  }
+
+  /**
+   * Entry Second - בודק תנאי כניסה שניה
+   * נקרא על ידי Execution Engine
+   */
+  entrySecond(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): EntrySignal {
+    const basePatternState: PatternState = {
+      patternFound: patternState.patternFound,
+      firstPeakIdx: patternState.firstPeakIdx,
+      secondPeakIdx: patternState.secondPeakIdx,
+      troughIdx: patternState.troughIdx,
+      neckline: patternState.neckline,
+      confirmCount: patternState.confirmCount,
+      earlyHeadsUp: patternState.earlyHeadsUp,
+      reason: patternState.reason,
+    };
+
+    // Find first red bar after second peak for exitFirst logic
+    const firstRedIdxAfterP2 =
+      basePatternState.secondPeakIdx != null
+        ? this.findFirstRedBarAfter(candles, basePatternState.secondPeakIdx)
+        : null;
+
+    return this.impl.entrySecond(candles, basePatternState);
+  }
+
+  /**
+   * Exit First - בודק תנאי יציאה ראשונה
+   * נקרא על ידי Execution Engine
+   */
+  exitFirst(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState: StrategyState
+  ): ExitSignal {
+    const basePatternState: PatternState = {
+      patternFound: patternState.patternFound,
+      firstPeakIdx: patternState.firstPeakIdx,
+      secondPeakIdx: patternState.secondPeakIdx,
+      troughIdx: patternState.troughIdx,
+      neckline: patternState.neckline,
+      confirmCount: patternState.confirmCount,
+      earlyHeadsUp: patternState.earlyHeadsUp,
+      reason: patternState.reason,
+    };
+
+    const firstRedIdxAfterP2 =
+      basePatternState.secondPeakIdx != null
+        ? this.findFirstRedBarAfter(candles, basePatternState.secondPeakIdx)
+        : null;
+
+    return this.impl.exitFirst(candles, basePatternState, firstRedIdxAfterP2);
+  }
+
+  /**
+   * Exit Second - בודק תנאי יציאה שניה
+   * נקרא על ידי Execution Engine
+   */
+  exitSecond(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState: StrategyState
+  ): ExitSignal {
+    return this.impl.exitSecond(candles);
+  }
+
+  /**
+   * Stop Levels for Entry 1
+   * נקרא על ידי Execution Engine
+   */
+  stopsForEntry1(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): StopLevels | null {
+    const basePatternState: PatternState = {
+      patternFound: patternState.patternFound,
+      firstPeakIdx: patternState.firstPeakIdx,
+      secondPeakIdx: patternState.secondPeakIdx,
+      troughIdx: patternState.troughIdx,
+      neckline: patternState.neckline,
+      confirmCount: patternState.confirmCount,
+      earlyHeadsUp: patternState.earlyHeadsUp,
+      reason: patternState.reason,
+    };
+
+    return this.impl.stopsForEntry1(candles, basePatternState);
+  }
+
+  /**
+   * Stop Levels for Entry 2
+   * נקרא על ידי Execution Engine
+   */
+  stopsForEntry2(
+    candles: Candle[],
+    patternState: PatternDetectionResult,
+    currentState?: StrategyState
+  ): StopLevels | null {
+    // Extract failedMAIdx from currentState.custom if available
+    const failedMAIdx =
+      currentState?.custom?.failedMAIdx != null
+        ? (currentState.custom.failedMAIdx as number)
+        : null;
+
+    return this.impl.stopsForEntry2(candles, failedMAIdx);
+  }
+
+  /**
+   * Helper: Find first red bar after index
+   */
+  private findFirstRedBarAfter(
+    candles: Candle[],
+    startIdx: number
+  ): number | null {
+    for (let i = startIdx + 1; i < candles.length; i++) {
+      if (candles[i].close < candles[i].open) {
+        return i;
+      }
+    }
+    return null;
   }
 }

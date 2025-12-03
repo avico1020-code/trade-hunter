@@ -284,27 +284,32 @@ export function createTradingSystem() {
     strategyMap.set(s.name, s);
   }
 
-  // 4) קונפיגים
+  // 4) יצירת Strategy Orchestrator
+  const orchestrator = new StrategyOrchestrator();
+
+  // 5) קונפיגים
   const scannerConfig = createDefaultScannerConfig();
   const executionConfig = createDefaultExecutionConfig();
 
-  // 5) יצירת מנוע ביצוע
+  // 6) יצירת מנוע ביצוע (עם orchestrator)
   const execEngine = new ExecutionEngine(
     executionConfig,
     ibkrClient,
-    strategyMap
+    strategyMap,
+    orchestrator
   );
 
-  // 6) יצירת סורק תבניות
+  // 7) יצירת סורק תבניות
   const scanner = new TradePatternScanner(
     masterClient,
     dataClient,
     strategies,
     scannerConfig,
     // callback – מה קורה כשזוהתה תבנית
-    (event: PatternFoundEvent) => {
+    // Scanner now passes candles and indicators directly
+    (event: PatternFoundEvent, candles: Candle[], indicators?: IndicatorSnapshot) => {
       execEngine
-        .onPatternEvent(event)
+        .onPatternEvent(event, candles, indicators)
         .catch((err) =>
           console.error("[ExecutionEngine] onPatternEvent error:", err)
         );
@@ -341,7 +346,9 @@ export function createTradingSystem() {
       forceExitIntervalId = null;
       console.log("[TradingSystem] Force exit timer cleared");
     }
-    // TODO: Add cleanup for scanner subscriptions when implemented
+    // Stop scanner and cleanup subscriptions
+    scanner.stop();
+    console.log("[TradingSystem] Scanner stopped and subscriptions cleaned up");
   }
 
   function getOpenPositions() {
