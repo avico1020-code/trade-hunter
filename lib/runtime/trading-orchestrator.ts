@@ -49,16 +49,41 @@ class HttpMasterScoringClient implements MasterScoringClient {
   constructor(private endpoint: string) {}
 
   async getTopSymbols(minScore: number): Promise<MasterSymbolInfo[]> {
-    // TODO: לממש קריאה אמיתית ל־backend שלך (HTTP/WebSocket וכו')
-    // כרגע מוחזר מערך ריק כדי לא לשבור את הקוד.
+    try {
+      const endpoint = this.endpoint.replace(/\/$/, "");
+      const url = `${endpoint}/top-symbols?minScore=${encodeURIComponent(minScore)}`;
 
-    console.warn(
-      "[HttpMasterScoringClient] getTopSymbols() called with minScore=",
-      minScore,
-      " (TODO: implement real HTTP call)"
-    );
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    return [];
+      if (!res.ok) {
+        console.error(
+          "[HttpMasterScoringClient] Failed to fetch top symbols",
+          { status: res.status, statusText: res.statusText }
+        );
+        return [];
+      }
+
+      const data = await res.json();
+
+      const rawSymbols: any[] = Array.isArray(data) ? data : data.symbols ?? [];
+
+      const symbols: MasterSymbolInfo[] = rawSymbols
+        .map((item) => ({
+          symbol: String(item.symbol),
+          direction: item.direction === "SHORT" ? "SHORT" : "LONG",
+          masterScore: Number(item.masterScore ?? 0),
+          moduleScores: item.moduleScores ?? {},
+        }))
+        .filter((s) => s.masterScore >= minScore);
+
+      return symbols;
+    } catch (err) {
+      console.error("[HttpMasterScoringClient] Error in getTopSymbols()", err);
+      return [];
+    }
   }
 }
 
@@ -252,9 +277,10 @@ function createDefaultExecutionConfig(): ExecutionEngineConfig {
 
 export function createTradingSystem() {
   // 1) יצירת לקוחות (Clients)
-  const masterClient = new HttpMasterScoringClient(
-    "http://your-backend/master-scoring" // TODO: עדכן לכתובת אמיתית
-  );
+  const masterScoringEndpoint =
+    process.env.MASTER_SCORING_ENDPOINT ?? "http://localhost:8000";
+
+  const masterClient = new HttpMasterScoringClient(masterScoringEndpoint);
   const dataClient = new IbkrRealTimeDataClient();
   const ibkrClient = new SimpleIbkrClient();
   const logger = new ConsoleScannerLogger();
