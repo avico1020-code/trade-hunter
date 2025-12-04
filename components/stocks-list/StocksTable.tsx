@@ -97,7 +97,7 @@ export function StocksTable({
         duration: 3000,
       });
       setNewStockSymbol("");
-      setIsAdding(false);
+    setIsAdding(false);
     } catch (error) {
       toast({
         title: "שגיאה",
