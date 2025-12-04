@@ -22,6 +22,8 @@ from typing import Dict, Any, List
 
 from rulebooks.options_flow_rulebook import OPTIONS_FLOW_RULEBOOK
 
+from scoring.safe_eval import safe_eval
+
 
 
 
@@ -80,9 +82,9 @@ class OptionsFlowScoringEngine:
 
         try:
 
-            return bool(eval(condition, {"__builtins__": {}}, variables))
+            return safe_eval(condition, variables)
 
-        except Exception:
+        except (ValueError, Exception):
 
             return False
 

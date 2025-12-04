@@ -26,6 +26,8 @@ from typing import Dict, Any, List, Optional
 
 from rulebooks.sentiment_rulebook import SENTIMENT_RULEBOOK
 
+from scoring.safe_eval import safe_eval
+
 
 
 # Module weight constant
@@ -118,9 +120,9 @@ class SentimentScoringEngine:
 
         try:
 
-            return bool(eval(condition, {"__builtins__": {}}, variables))
+            return safe_eval(condition, variables)
 
-        except Exception:
+        except (ValueError, Exception):
 
             return False
 

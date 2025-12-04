@@ -26,7 +26,7 @@ Score range: [-10, +10]
 
 Uses both MINOR and MAJOR timeframes (typically MAJOR for fundamentals).
 
-Conditions use Python expressions evaluated with eval() in a safe environment.
+Conditions use Python expressions evaluated with safe AST-based evaluator.
 
 """
 

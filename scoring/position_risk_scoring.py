@@ -22,6 +22,8 @@ from typing import Dict, Any, List, Tuple
 
 from rulebooks.position_risk_rulebook import POSITION_RISK_RULEBOOK
 
+from scoring.safe_eval import safe_eval
+
 
 
 # ============================================
@@ -566,9 +568,9 @@ class PositionRiskScoringEngine:
 
         try:
 
-            return bool(eval(condition_expr, {"__builtins__": {}}, local_env))
+            return safe_eval(condition_expr, local_env)
 
-        except Exception:
+        except (ValueError, Exception):
 
             return False
 

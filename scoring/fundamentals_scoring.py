@@ -22,6 +22,8 @@ from typing import Dict, Any, List, Tuple
 
 from rulebooks.fundamentals_rulebook import FUNDAMENTALS_RULEBOOK
 
+from scoring.safe_eval import safe_eval
+
 
 
 # ============================================
@@ -448,9 +450,9 @@ class FundamentalsScoringEngine:
 
         try:
 
-            return bool(eval(condition_expr, {"__builtins__": {}}, local_env))
+            return safe_eval(condition_expr, local_env)
 
-        except Exception:
+        except (ValueError, Exception):
 
             # אם יש שגיאה בתנאי – מתעלמים ממנו
 
