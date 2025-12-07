@@ -83,7 +83,13 @@ export function ListsGrid() {
 
   const handleListClick = (id: string) => {
     // Navigate to stocks list page
-    router.push("/stocks-list");
+    try {
+      router.push("/stocks-list");
+    } catch (error) {
+      console.error("[ListsGrid] Navigation error:", error);
+      // Fallback: use window.location if router.push fails
+      window.location.href = "/stocks-list";
+    }
   };
 
   return (

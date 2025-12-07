@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:log": "next dev --turbopack > logs/server.log 2>&1",
     "dev:full": "concurrently \"bunx convex dev\" \"next dev --turbopack\"",
     "dev:npx": "npx next dev --turbopack",
     "build": "next build --turbopack",

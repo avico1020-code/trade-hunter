@@ -12,12 +12,18 @@ import { IbkrStatusIndicator } from "@/components/ibkr/IbkrStatusIndicator";
 
 export function HeaderBar() {
   const router = useRouter();
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn, user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+
+  // Prevent hydration mismatch by only rendering after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -67,18 +73,19 @@ export function HeaderBar() {
       <div className="container mx-auto flex items-center justify-between overflow-visible">
         {/* Left side - Profile with greeting */}
         <div className="flex items-center gap-2 relative">
-          {isSignedIn && user ? (
+          {mounted && isLoaded && isSignedIn && user ? (
             <>
               <Button
                 ref={buttonRef}
                 variant="ghost"
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-2 hover:bg-accent rounded-lg px-3 py-2 h-auto"
+                suppressHydrationWarning
               >
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center" suppressHydrationWarning>
                   <User className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium" suppressHydrationWarning>
                   שלום, {user.firstName || user.emailAddresses[0]?.emailAddress.split("@")[0]}
                 </span>
               </Button>
@@ -123,10 +130,10 @@ export function HeaderBar() {
             </>
           ) : (
             <>
-              <Button variant="ghost" size="icon" aria-label="פרופיל">
+              <Button variant="ghost" size="icon" aria-label="פרופיל" suppressHydrationWarning>
                 <User className="h-5 w-5" />
               </Button>
-              <span className="text-sm font-medium">פרופיל</span>
+              <span className="text-sm font-medium" suppressHydrationWarning>פרופיל</span>
             </>
           )}
         </div>

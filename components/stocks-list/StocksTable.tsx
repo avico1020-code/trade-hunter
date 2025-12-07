@@ -15,6 +15,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeMarketData } from "@/lib/hooks/useRealtimeMarketData";
 
 interface Stock {
   id: Id<"listStocks">;
@@ -47,13 +48,12 @@ export function StocksTable({
   const [newStockSymbol, setNewStockSymbol] = useState("");
   const [isAddingStock, setIsAddingStock] = useState(false);
 
-  // Map Convex data to UI format
-  // TODO: In the future, connect to Interactive Brokers API for real-time price data
+  // Map Convex data to UI format with real-time IBKR data
   const stocks: Stock[] =
     listStocks?.map((stock) => ({
       id: stock.id,
       symbol: stock.symbol,
-      // Placeholder values - will be replaced with real-time data
+      // Will be populated by StockRow component with real-time data
       price: 0,
       volume: 0,
       changePercent: 0,
@@ -161,38 +161,13 @@ export function StocksTable({
               </thead>
               <tbody>
                 {stocks.map((stock) => (
-                  <tr
+                  <StockRow
                     key={stock.id}
-                    className={`border-b cursor-pointer hover:bg-muted/50 ${
-                      selectedStockSymbol === stock.symbol ? "bg-muted" : ""
-                    }`}
-                    onClick={() => onSelectStock(stock)}
-                  >
-                    <td className="p-3 font-medium whitespace-nowrap">{stock.symbol}</td>
-                    <td className="p-3 whitespace-nowrap">${stock.price.toFixed(2)}</td>
-                    <td className="p-3 whitespace-nowrap">{stock.volume.toLocaleString()}</td>
-                    <td
-                      className={`p-3 whitespace-nowrap ${
-                        stock.changePercent >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {stock.changePercent >= 0 ? "+" : ""}
-                      {stock.changePercent.toFixed(2)}%
-                    </td>
-                    <td className="p-3 whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(stock.id);
-                        }}
-                        aria-label={`מחק ${stock.symbol}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
+                    stock={stock}
+                    selected={selectedStockSymbol === stock.symbol}
+                    onSelect={onSelectStock}
+                    onDelete={handleDelete}
+                  />
                 ))}
                 {isAdding && (
                   <tr className="border-b">
@@ -250,5 +225,94 @@ export function StocksTable({
         הוסף מניה למעקב
       </Button>
     </div>
+  );
+}
+
+// Component for individual stock row with real-time IBKR data
+interface StockRowProps {
+  stock: Stock;
+  selected: boolean;
+  onSelect: (stock: Stock) => void;
+  onDelete: (id: Id<"listStocks">) => void;
+}
+
+function StockRow({ stock, selected, onSelect, onDelete }: StockRowProps) {
+  // Get real-time market data from IBKR (with Yahoo Finance fallback)
+  const { price, volume, changePercent, source, isLoading } = useRealtimeMarketData(stock.symbol);
+
+  // Update stock data with real-time values
+  const stockWithData: Stock = {
+    ...stock,
+    price: price > 0 ? price : stock.price,
+    volume: volume > 0 ? volume : stock.volume,
+    changePercent: price > 0 ? changePercent : stock.changePercent,
+  };
+
+  return (
+    <tr
+      className={`border-b cursor-pointer hover:bg-muted/50 ${selected ? "bg-muted" : ""}`}
+      onClick={() => onSelect(stockWithData)}
+    >
+      <td className="p-3 font-medium whitespace-nowrap">
+        {stock.symbol}
+        {source && (
+          <span
+            className={`text-xs ml-2 ${
+              source === "ibkr" ? "text-green-500" : "text-blue-500"
+            }`}
+            title={source === "ibkr" ? "IBKR Real-time" : "Yahoo Finance"}
+          >
+            {source === "ibkr" ? "📡" : "📰"}
+          </span>
+        )}
+      </td>
+      <td className="p-3 whitespace-nowrap">
+        {isLoading ? (
+          <span className="text-muted-foreground">...</span>
+        ) : stockWithData.price > 0 ? (
+          `$${stockWithData.price.toFixed(2)}`
+        ) : (
+          <span className="text-muted-foreground">N/A</span>
+        )}
+      </td>
+      <td className="p-3 whitespace-nowrap">
+        {isLoading ? (
+          <span className="text-muted-foreground">...</span>
+        ) : stockWithData.volume > 0 ? (
+          stockWithData.volume.toLocaleString()
+        ) : (
+          <span className="text-muted-foreground">N/A</span>
+        )}
+      </td>
+      <td
+        className={`p-3 whitespace-nowrap ${
+          stockWithData.changePercent >= 0 ? "text-green-600" : "text-red-600"
+        }`}
+      >
+        {isLoading ? (
+          <span className="text-muted-foreground">...</span>
+        ) : stockWithData.price > 0 ? (
+          <>
+            {stockWithData.changePercent >= 0 ? "+" : ""}
+            {stockWithData.changePercent.toFixed(2)}%
+          </>
+        ) : (
+          <span className="text-muted-foreground">N/A</span>
+        )}
+      </td>
+      <td className="p-3 whitespace-nowrap">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(stock.id);
+          }}
+          aria-label={`מחק ${stock.symbol}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </td>
+    </tr>
   );
 }

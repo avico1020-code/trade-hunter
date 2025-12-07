@@ -2,66 +2,87 @@ import { NextResponse } from "next/server";
 import { getTwsClient } from "@/lib/ibkr/twsClient.simple";
 
 export async function GET(request: Request) {
+  const startTime = Date.now();
+  const symbol = new URL(request.url).searchParams.get("symbol") || "";
+
+  // Quick validation
+  if (!symbol) {
+    return NextResponse.json({ error: "Symbol is required" }, { status: 400 });
+  }
+
+  console.log(`\n========== [API] REQUEST START: ${symbol} ==========`);
+  console.log(`[API] Time: ${new Date().toISOString()}`);
+  console.log(`[API] URL: ${request.url}`);
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get("symbol");
-
-    if (!symbol) {
-      return NextResponse.json({ error: "Symbol is required" }, { status: 400 });
-    }
-
-    console.log(`📡 [API] Fetching market data for ${symbol} from IB Gateway via TWS Socket API...`);
-
-    // Try to connect to IB Gateway (try multiple ports)
-    const portsToTry = [4001, 4002, 7497, 7496];
-    let client = null;
-    let lastError: Error | null = null;
-
-    for (const port of portsToTry) {
-      try {
-        // Ensure clientId is in valid range (0-32767)
-        const clientId = Math.floor(Date.now() % 32767) + Math.floor(Math.random() * 100);
-        client = getTwsClient({ 
-          host: "127.0.0.1", 
-          port, 
-          clientId
-        });
-        
-        // Connect with timeout (wait for nextValidId which confirms full connection)
-        await Promise.race([
-          client.connect(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), 20000)), // Increased to 20s
-        ]);
-        
-        // Wait a bit for connection to stabilize (nextValidId already fired during connect)
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay for stability
-        
-        if (client.isConnected()) {
-          console.log(`[API] ✅ Connection verified for ${symbol} on port ${port}`);
-          break; // Successfully connected
-        }
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        console.log(`[API] ⚠️ Failed to connect to port ${port}: ${lastError.message}`);
-        client = null;
-        continue; // Try next port
-      }
-    }
-
-    if (!client || !client.isConnected()) {
-      const errorMsg = lastError?.message || "Failed to connect to IB Gateway";
-      console.error(`[API] ❌ Connection failed for ${symbol}:`, errorMsg);
+    // Get singleton client - always uses same instance
+    console.log(`[API] Step 1: Getting TWS client singleton...`);
+    
+    let client;
+    try {
+      // Use default port 4001 (Paper Trading) - singleton will handle reuse
+      client = getTwsClient({ port: 4001 });
+      console.log(`[API] Step 2: ✅ Client singleton obtained`);
+      console.log(`[API]    Client ID: ${client.getClientId()}`);
+      console.log(`[API]    Connected: ${client.isConnected()}`);
+    } catch (clientErr) {
+      const clientErrorMsg = clientErr instanceof Error ? clientErr.message : String(clientErr);
+      console.error(`[API] ❌ Failed to get TWS client:`, clientErrorMsg);
+      console.error(`[API]    Stack:`, clientErr instanceof Error ? clientErr.stack : 'N/A');
       return NextResponse.json(
         {
-          error: "Failed to connect to IB Gateway",
-          details: errorMsg,
-          suggestion: "Please ensure IB Gateway (or TWS) is running, fully connected, and API is enabled in Settings → API → Settings"
+          error: "Failed to initialize IB Gateway client",
+          details: clientErrorMsg,
+          suggestion: "Check if @stoqey/ib package is installed correctly (bun install)"
         },
-        { status: 503 }
+        { status: 500 }
       );
     }
+    
+    // Ensure connection
+    if (!client.isConnected()) {
+      console.log(`[API] Step 3: Not connected, attempting connection...`);
+      try {
+        // Simple connection with timeout
+        console.log(`[API]    Calling client.connect()...`);
+        const connectPromise = client.connect();
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error("Connection timeout after 20 seconds")), 20000)
+        );
+        
+        await Promise.race([connectPromise, timeoutPromise]);
+        console.log(`[API] Step 4: ✅ Connection promise resolved`);
+        
+        // Check if actually connected
+        if (!client.isConnected()) {
+          console.error(`[API] ⚠️  Connection promise resolved but isConnected() = false`);
+          throw new Error("Connection promise resolved but client not connected");
+        }
+        
+        console.log(`[API] Step 5: ✅ Connection confirmed! isConnected() = true`);
+      } catch (connectErr) {
+        const errorMsg = connectErr instanceof Error ? connectErr.message : String(connectErr);
+        console.error(`[API] ❌ Connection error:`, errorMsg);
+        console.error(`[API]    Error type: ${connectErr instanceof Error ? connectErr.constructor.name : typeof connectErr}`);
+        console.error(`[API]    Stack:`, connectErr instanceof Error ? connectErr.stack : 'N/A');
+        
+        // Return detailed error
+        return NextResponse.json(
+          {
+            error: "Failed to connect to IB Gateway",
+            details: errorMsg,
+            suggestion: "Make sure IB Gateway is running, fully connected, and API is enabled (Settings → API → Settings → Enable ActiveX and Socket Clients)"
+          },
+          { status: 503 }
+        );
+      }
+    } else {
+      console.log(`[API] Step 3: ✅ Already connected, reusing existing connection`);
+    }
 
-    // Get market data snapshot (similar to Python's reqMktData)
+    // Get market data snapshot
+    console.log(`[API] Step 6: Fetching market data for ${symbol}...`);
+
     try {
       const snapshot = await client.getMarketDataSnapshot(symbol);
 

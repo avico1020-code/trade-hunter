@@ -40,8 +40,44 @@ export function useRealtimeMarketData(symbol: string | null): MarketDataResult {
     if (now - lastFetchTime.current < 5000) return; // Debounce: max once per 5 seconds
     lastFetchTime.current = now;
 
-    // Circuit breaker: If IBKR failed recently, skip it for a while
-    if (now < ibkrDisabledUntil.current) {
+    // Check if IB Gateway is connected before applying circuit breaker
+    // Use short timeout to prevent blocking
+    let ibkrConnected = false;
+    try {
+      const statusController = new AbortController();
+      const statusTimeoutId = setTimeout(() => statusController.abort(), 3000); // 3 second timeout
+      
+      const statusRes = await fetch("/api/ibkr/auth/status", { 
+        cache: "no-store",
+        signal: statusController.signal,
+      });
+      
+      clearTimeout(statusTimeoutId);
+      
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        ibkrConnected = statusData.connected === true;
+        
+        // If IB Gateway is connected, reset circuit breaker
+        if (ibkrConnected) {
+          if (ibkrDisabledUntil.current > 0 || ibkrFailureCount.current > 0) {
+            console.log(`✅ [useRealtimeMarketData] IB Gateway connected - resetting circuit breaker for ${sym}`);
+            ibkrFailureCount.current = 0;
+            ibkrDisabledUntil.current = 0;
+          }
+        }
+      }
+    } catch (statusError: any) {
+      // If status check fails or times out, assume not connected - but don't block
+      // Just proceed with the fetch attempt (it will handle connection if needed)
+      if (statusError.name !== 'AbortError') {
+        console.warn(`⚠️ [useRealtimeMarketData] Failed to check IB Gateway status:`, statusError);
+      }
+    }
+
+    // Circuit breaker: If IBKR failed recently AND IB Gateway is not connected, skip it for a while
+    // But if IB Gateway is connected, always try IBKR first
+    if (!ibkrConnected && now < ibkrDisabledUntil.current) {
       const minutesLeft = Math.ceil((ibkrDisabledUntil.current - now) / 60000);
       console.log(`⏸️ [useRealtimeMarketData] IBKR disabled for ${sym} (${minutesLeft}m remaining) - using Yahoo Finance directly`);
       try {
@@ -54,7 +90,11 @@ export function useRealtimeMarketData(symbol: string | null): MarketDataResult {
 
     try {
       // Try IBKR first (via Next.js API route - client-side only!)
-      console.log(`🔍 [useRealtimeMarketData] Fetching ${sym} from IBKR...`);
+      if (ibkrConnected) {
+        console.log(`🔍 [useRealtimeMarketData] Fetching ${sym} from IBKR (IB Gateway connected)...`);
+      } else {
+        console.log(`🔍 [useRealtimeMarketData] Fetching ${sym} from IBKR...`);
+      }
       
       // Add timeout to prevent hanging
       const controller = new AbortController();
@@ -68,7 +108,11 @@ export function useRealtimeMarketData(symbol: string | null): MarketDataResult {
         clearTimeout(timeoutId);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+        const errorName = fetchError?.name || '';
+        const errorMessage = fetchError?.message || String(fetchError) || 'Unknown error';
+        
+        // Handle timeout/abort errors
+        if (errorName === 'AbortError' || errorMessage.includes('aborted') || errorMessage.includes('timeout')) {
           console.warn(`⚠️ [useRealtimeMarketData] IBKR request timeout for ${sym} - falling back to Yahoo Finance`);
           ibkrFailureCount.current += 1;
           ibkrLastFailureTime.current = now;
@@ -81,14 +125,20 @@ export function useRealtimeMarketData(symbol: string | null): MarketDataResult {
             console.warn(`🚫 [useRealtimeMarketData] IBKR disabled for 5 minutes after ${ibkrFailureCount.current} failures`);
           }
           // Don't throw - fall through to Yahoo Finance fallback
-          await fetchYahoo({ symbol: sym }).catch(console.error);
+          await fetchYahoo({ symbol: sym }).catch((err) => {
+            console.error(`❌ [useRealtimeMarketData] Yahoo Finance fallback also failed for ${sym}:`, err);
+          });
           return;
         } else {
-          console.warn(`⚠️ [useRealtimeMarketData] IBKR fetch failed for ${sym}:`, fetchError.message || String(fetchError));
+          // Handle network errors (including "Failed to fetch")
+          console.warn(`⚠️ [useRealtimeMarketData] IBKR network error for ${sym}:`, errorMessage);
           ibkrFailureCount.current += 1;
           ibkrLastFailureTime.current = now;
-          // Fall through to Yahoo Finance fallback
-          throw fetchError;
+          // Fall through to Yahoo Finance fallback instead of throwing
+          await fetchYahoo({ symbol: sym }).catch((err) => {
+            console.error(`❌ [useRealtimeMarketData] Yahoo Finance fallback also failed for ${sym}:`, err);
+          });
+          return;
         }
       }
 

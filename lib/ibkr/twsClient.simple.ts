@@ -19,6 +19,9 @@ export class TwsClient {
   private config: Required<TwsConfig>;
   private accountType: "PAPER" | "LIVE" | "UNKNOWN" | null = null; // Store account type like Python code
   private nextValidOrderId: number | null = null; // Store next valid order ID
+  private keepAliveInterval: NodeJS.Timeout | null = null; // Keep-alive timer
+  private reconnectTimeout: NodeJS.Timeout | null = null; // Reconnection timer
+  private lastActivityTime: number = 0; // Track last activity to prevent inactivity disconnects
 
   constructor(config: TwsConfig = {}) {
     // Generate unique clientId if not provided
@@ -45,14 +48,25 @@ export class TwsClient {
   private ensureIBLib() {
     if (!this.ibLib) {
       const ib = require("@stoqey/ib");
+      // @stoqey/ib exports IBApi, not IB!
+      const IBApiClass = ib.IBApi || ib.default?.IBApi || ib.default;
+      
+      if (!IBApiClass) {
+        throw new Error('IBApi class not found in @stoqey/ib. Package may not be installed correctly.');
+      }
+      
       this.ibLib = {
-        IB: ib.IB || ib.default?.IB || ib.default || ib,
+        IB: IBApiClass, // Store as IB for backwards compatibility in code
         EventName: ib.EventName,
         ErrorCode: ib.ErrorCode,
         SecType: ib.SecType,
         BarSizeSetting: ib.BarSizeSetting,
         WhatToShow: ib.WhatToShow,
       };
+      
+      console.log(`[TWS Client] ✅ Loaded @stoqey/ib library`);
+      console.log(`[TWS Client]    IBApi class: ${IBApiClass.name}`);
+      console.log(`[TWS Client]    EventName: ${!!this.ibLib.EventName}`);
     }
     return this.ibLib;
   }
@@ -60,126 +74,54 @@ export class TwsClient {
   async connect(): Promise<void> {
     // If already connected, return immediately
     if (this.connected) {
+      console.log(`✅ [TWS Client] Already connected, skipping...`);
       return Promise.resolve();
     }
 
     // If connection is in progress, return the existing promise
     if (this.connecting && this.connectPromise) {
+      console.log(`⏳ [TWS Client] Connection already in progress, waiting...`);
       return this.connectPromise;
     }
 
     const lib = this.ensureIBLib();
 
-    // If IB instance exists but not connected, disconnect first to clean up
+    // If IB instance exists but not connected, clean it up
     if (this.ib && !this.connected) {
+      console.log(`🧹 [TWS Client] Cleaning up existing disconnected instance...`);
       try {
+        // Remove all listeners to prevent memory leaks
+        this.ib.removeAllListeners();
         this.ib.disconnect();
+        // Wait a bit for IB Gateway to release the Client ID
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (e) {
         // Ignore errors if already disconnected
+        console.warn(`⚠️ [TWS Client] Error during cleanup:`, e);
       }
       this.ib = null;
     }
 
     // Mark as connecting and create promise
     this.connecting = true;
+    console.log(`🚀 [TWS Client] Starting connection process...`);
     this.connectPromise = new Promise((resolve, reject) => {
-      // Create new IB instance with unique clientId if needed
-        if (!this.ib) {
-          console.log(`🔌 [TWS Client] Connecting to IB Gateway:`);
-          console.log(`   📍 Host: ${this.config.host}`);
-          console.log(`   🔌 Port: ${this.config.port} ${this.config.port === 4001 ? '(Paper Trading)' : this.config.port === 4002 ? '(Live Trading)' : ''}`);
-          console.log(`   🆔 Client ID: ${this.config.clientId}`);
-          this.ib = new lib.IB({
-            clientId: this.config.clientId,
-            host: this.config.host,
-            port: this.config.port,
-          });
-
-        // Set up persistent event handlers (only once per instance)
-        // NOTE: 'connected' event fires early - wait for 'nextValidId' for full connection
-        this.ib.on(lib.EventName.connected, () => {
-          console.log(`✅ [TWS Client] Socket connected to IB Gateway!`);
-          console.log(`   📍 Connection: ${this.config.host}:${this.config.port}`);
-          console.log(`   🆔 Client ID: ${this.config.clientId}`);
-          console.log(`   ⏳ Waiting for nextValidId to confirm full connection...`);
-          // Don't set this.connected = true yet - wait for nextValidId
+      // Create new IB instance with unique clientId
+      if (!this.ib) {
+        console.log(`🔌 [TWS Client] Creating new IB instance:`);
+        console.log(`   📍 Host: ${this.config.host}`);
+        console.log(`   🔌 Port: ${this.config.port} ${this.config.port === 4001 ? '(Paper Trading)' : this.config.port === 4002 ? '(Live Trading)' : ''}`);
+        console.log(`   🆔 Client ID: ${this.config.clientId}`);
+        this.ib = new lib.IB({
+          clientId: this.config.clientId,
+          host: this.config.host,
+          port: this.config.port,
         });
-
-        // Handle nextValidId event (similar to Python's nextValidId callback)
-        // CRITICAL: nextValidId means connection is fully established
-        this.ib.on(lib.EventName.nextValidId, (orderId: number) => {
-          this.nextValidOrderId = orderId;
-          console.log(`✅ [TWS Client] Connected. Next Valid Order ID: ${orderId}`);
-          
-          // Mark as connected only after nextValidId (connection is fully established)
-          if (!this.connected) {
-            this.connected = true;
-            this.connecting = false;
-            console.log(`✅ [TWS Client] Connection fully established! Ready to use.`);
-          }
-          
-          // Request account updates to detect account type (like Python's reqAccountUpdates)
-          // Wait a bit before requesting to ensure connection is stable
-          setTimeout(() => {
-            try {
-              this.ib.reqAccountUpdates(true, ""); // true = subscribe, "" = all accounts
-              console.log(`📊 [TWS Client] Requested account updates to detect account type...`);
-            } catch (e) {
-              console.warn(`⚠️ [TWS Client] Failed to request account updates:`, e);
-            }
-          }, 500); // Small delay to ensure connection is stable
-        });
-
-        // Handle account value updates (like Python's updateAccountValue callback)
-        this.ib.on(lib.EventName.accountValue, (key: string, val: string, currency: string, accountName: string) => {
-          // Detect account type based on account name (DU prefix = Paper Trading, like Python code)
-          // Python code: if accountName.startswith("DU"): account_type = "PAPER"
-          if (accountName && accountName.startsWith("DU")) {
-            this.accountType = "PAPER";
-            console.log(`\n======== ACCOUNT DETECTED ========`);
-            console.log(`Account Name: ${accountName}`);
-            console.log(`Account Type: ${this.accountType}`);
-            console.log(`==================================\n`);
-          } else if (accountName && !this.accountType) {
-            // If account name doesn't start with DU, assume LIVE (unless already set)
-            // But only set if we haven't set it yet (to avoid overwriting PAPER)
-            if (key === "AccountType" || key === "AccountCode") {
-              this.accountType = "LIVE";
-              console.log(`\n======== ACCOUNT DETECTED ========`);
-              console.log(`Account Name: ${accountName}`);
-              console.log(`Account Type: ${this.accountType}`);
-              console.log(`==================================\n`);
-            }
-          }
-        });
-
-        this.ib.on(lib.EventName.disconnected, () => {
-          console.log(`❌ [TWS Client] Disconnected from IB Gateway`);
-          console.log(`   📍 Was connected to: ${this.config.host}:${this.config.port}`);
-          console.log(`   🆔 Client ID: ${this.config.clientId}`);
-          this.connected = false;
-          this.connecting = false;
-          if (this.connectPromise) {
-            this.connectPromise = null;
-          }
-        });
-
-        this.ib.on(lib.EventName.error, (err: Error, code: number) => {
-          console.error(`❌ [TWS Client] IB Gateway Error [${code}]:`, err.message);
-          console.error(`   📍 Connection: ${this.config.host}:${this.config.port}`);
-          console.error(`   🆔 Client ID: ${this.config.clientId}`);
-          
-          // Common error codes and their meanings
-          if (code === 502) {
-            console.error(`   💡 Error 502: Connection refused - IB Gateway not running or API not enabled`);
-          } else if (code === 504) {
-            console.error(`   💡 Error 504: Connection timeout - IB Gateway not responding`);
-          } else if (code === 1100) {
-            console.error(`   💡 Error 1100: Connectivity between IB and TWS has been lost`);
-          } else if (code === 1101) {
-            console.error(`   💡 Error 1101: Connectivity between IB and TWS has been restored`);
-          }
-        });
+        
+        // Set up persistent event handlers (only once when creating new instance)
+        this.setupPersistentHandlers(lib);
+      } else {
+        console.log(`♻️  [TWS Client] Reusing existing IB instance`);
       }
 
       // Set up connection timeout (wait for nextValidId, which can take longer)
@@ -187,27 +129,53 @@ export class TwsClient {
         if (this.connecting && this.connectPromise) {
           this.connecting = false;
           this.connectPromise = null;
+          console.error(`❌ [TWS Client] Connection timeout after 25 seconds`);
+          console.error(`   📍 Tried: ${this.config.host}:${this.config.port}`);
+          console.error(`   💡 Make sure IB Gateway is running and API is enabled`);
           reject(new Error(`Connection timeout after 25 seconds - Is IB Gateway running on port ${this.config.port}? Make sure API is enabled.`));
         }
-      }, 25000); // Increased to 25 seconds to wait for nextValidId
+      }, 25000); // 25 seconds timeout
 
-      // Listen for nextValidId - this confirms full connection (like Python code)
+      // Handle nextValidId - this confirms full connection (CRITICAL)
+      // Use 'once' for this specific connection attempt
       const onNextValidId = (orderId: number) => {
         clearTimeout(timeout);
-        console.log(`✅ [TWS Client] Connection fully established! Next Valid Order ID: ${orderId}`);
+        this.nextValidOrderId = orderId;
+        console.log(`✅ [TWS Client] Received nextValidId! Order ID: ${orderId}`);
+        console.log(`✅ [TWS Client] Connection fully established!`);
+        
         if (this.connecting && this.connectPromise) {
           this.connected = true;
           this.connecting = false;
           this.connectPromise = null;
+          this.lastActivityTime = Date.now();
+          
+          // Start keep-alive mechanism to prevent inactivity disconnects
+          this.startKeepAlive();
+          
+          // Request account updates to detect account type
+          setTimeout(() => {
+            try {
+              if (this.ib && this.connected) {
+                this.ib.reqAccountUpdates(true, ""); // true = subscribe, "" = all accounts
+                console.log(`📊 [TWS Client] Requested account updates to detect account type...`);
+                this.lastActivityTime = Date.now();
+              }
+            } catch (e) {
+              console.warn(`⚠️ [TWS Client] Failed to request account updates:`, e);
+            }
+          }, 500); // Small delay to ensure connection is stable
+          
           resolve();
         }
       };
 
-      // Also handle connection errors
+      // Handle connection errors for this specific connection attempt
       const errorHandler = (err: Error, code: number) => {
         if (!this.connected && this.connecting && this.connectPromise) {
           clearTimeout(timeout);
           this.connecting = false;
+          const savedConnectPromise = this.connectPromise;
           this.connectPromise = null;
           
           // Detailed error messages
@@ -220,35 +188,69 @@ export class TwsClient {
             errorMessage = `Connection timeout to ${this.config.host}:${this.config.port}. ` +
               `IB Gateway is not responding. Make sure it's fully connected (not just started).`;
           } else if (err.message.includes("client id is already in use")) {
-            errorMessage = `Client ID ${this.config.clientId} is already in use. ` +
-              `Close other applications using IB Gateway or restart IB Gateway.`;
+            // If Client ID is in use, try with a different Client ID (increment)
+            const oldClientId = this.config.clientId || 1;
+            const newClientId = oldClientId + 1;
+            console.warn(`⚠️ [TWS Client] Client ID ${oldClientId} is already in use. Trying Client ID ${newClientId}...`);
+            
+            // Update config and retry with new Client ID
+            this.config.clientId = newClientId;
+            
+            // Clean up and retry
+            try {
+              if (this.ib) {
+                this.ib.removeAllListeners();
+                this.ib.disconnect();
+              }
+              this.ib = null;
+              this.connected = false;
+              
+              // Wait a bit for IB Gateway to release the Client ID, then retry
+              setTimeout(async () => {
+                try {
+                  // Retry connection with new Client ID
+                  await this.connect();
+                  // Connection succeeded with new Client ID
+                  // Note: The promise is resolved by onNextValidId handler
+                } catch (retryError) {
+                  // If retry also fails, we can't reject savedConnectPromise here
+                  // The error will be logged and connection will fail naturally
+                  console.error(`❌ [TWS Client] Retry with Client ID ${newClientId} also failed:`, retryError);
+                }
+              }, 1500); // Wait 1.5 seconds before retry to ensure IB Gateway released the Client ID
+              return; // Don't reject here - we're retrying
+            } catch (retryErr) {
+              errorMessage = `Client ID ${oldClientId} is already in use and retry setup failed. ` +
+                `Close other applications using IB Gateway or restart IB Gateway.`;
+              reject(new Error(errorMessage));
+            }
           }
           
-          // Reject on critical connection errors
-          if (code === 502 || code === 504 || err.message.includes("client id is already in use")) {
+          // Reject on critical connection errors (but not client ID in use - we retry above)
+          if (code === 502 || code === 504) {
             console.error(`❌ [TWS Client] Connection failed: ${errorMessage}`);
             reject(new Error(`Failed to connect to IB Gateway: ${errorMessage} (code: ${code})`));
           }
         }
       };
 
-      // Use once to avoid duplicate listeners for this connection attempt
-      // CRITICAL: Wait for nextValidId, not just 'connected' event
-      // 'connected' fires early, but nextValidId confirms connection is fully ready
+      // Use 'once' for connection-specific handlers (resolve/reject the promise)
+      // These handlers are removed after firing once
       this.ib.once(lib.EventName.nextValidId, onNextValidId);
       this.ib.once(lib.EventName.error, errorHandler);
 
       // Start connection
       try {
-        console.log(`🚀 [TWS Client] Starting connection attempt...`);
+        console.log(`🚀 [TWS Client] Calling ib.connect()...`);
         this.ib.connect();
-        console.log(`⏳ [TWS Client] Connection attempt started, waiting for response...`);
+        console.log(`⏳ [TWS Client] Connection call completed, waiting for nextValidId...`);
       } catch (error) {
         clearTimeout(timeout);
         this.connecting = false;
         this.connectPromise = null;
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`❌ [TWS Client] Failed to start connection:`, errorMsg);
+        console.error(`❌ [TWS Client] Failed to call ib.connect():`, errorMsg);
+        console.error(`   Stack:`, error instanceof Error ? error.stack : 'N/A');
         reject(new Error(`Failed to start connection: ${errorMsg}`));
       }
     });
@@ -256,11 +258,112 @@ export class TwsClient {
     return this.connectPromise;
   }
 
+  /**
+   * Set up persistent event handlers for the IB instance
+   * These handlers persist for the lifetime of the connection
+   */
+  private setupPersistentHandlers(lib: any): void {
+    if (!this.ib) return;
+
+    // Handle 'connected' event (fires early, before nextValidId)
+    this.ib.on(lib.EventName.connected, () => {
+      console.log(`✅ [TWS Client] Socket connected to IB Gateway!`);
+      console.log(`   📍 Connection: ${this.config.host}:${this.config.port}`);
+      console.log(`   🆔 Client ID: ${this.config.clientId}`);
+      console.log(`   ⏳ Waiting for nextValidId to confirm full connection...`);
+    });
+
+    // Handle account value updates (for account type detection)
+    this.ib.on(lib.EventName.accountValue, (key: string, val: string, currency: string, accountName: string) => {
+      // Detect account type based on account name (DU prefix = Paper Trading)
+      if (accountName && accountName.startsWith("DU")) {
+        this.accountType = "PAPER";
+        console.log(`\n======== ACCOUNT DETECTED ========`);
+        console.log(`Account Name: ${accountName}`);
+        console.log(`Account Type: ${this.accountType}`);
+        console.log(`==================================\n`);
+      } else if (accountName && !this.accountType) {
+        // If account name doesn't start with DU, assume LIVE
+        if (key === "AccountType" || key === "AccountCode") {
+          this.accountType = "LIVE";
+          console.log(`\n======== ACCOUNT DETECTED ========`);
+          console.log(`Account Name: ${accountName}`);
+          console.log(`Account Type: ${this.accountType}`);
+          console.log(`==================================\n`);
+        }
+      }
+    });
+
+    // Handle disconnection
+    this.ib.on(lib.EventName.disconnected, () => {
+      console.log(`❌ [TWS Client] Disconnected from IB Gateway`);
+      console.log(`   📍 Was connected to: ${this.config.host}:${this.config.port}`);
+      console.log(`   🆔 Client ID: ${this.config.clientId}`);
+      
+      // Stop keep-alive when disconnected
+      this.stopKeepAlive();
+      
+      // Clear reconnection timeout if exists
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+      
+      this.connected = false;
+      this.connecting = false;
+      if (this.connectPromise) {
+        this.connectPromise = null;
+      }
+      
+      // Schedule automatic reconnection after a short delay
+      // Only reconnect if this was an unexpected disconnection (not from disconnect() call)
+      if (this.ib) {
+        console.log(`🔄 [TWS Client] Scheduling automatic reconnection in 5 seconds...`);
+        this.reconnectTimeout = setTimeout(() => {
+          if (this.ib && !this.connected && !this.connecting) {
+            console.log(`🔄 [TWS Client] Attempting automatic reconnection...`);
+            this.connect().catch((err) => {
+              console.warn(`⚠️ [TWS Client] Automatic reconnection failed:`, err);
+            });
+          }
+        }, 5000); // Wait 5 seconds before reconnecting
+      }
+    });
+
+    // Handle general errors (log but don't reject unless it's a connection error)
+    this.ib.on(lib.EventName.error, (err: Error, code: number) => {
+      console.error(`❌ [TWS Client] IB Gateway Error [${code}]:`, err.message);
+      console.error(`   📍 Connection: ${this.config.host}:${this.config.port}`);
+      console.error(`   🆔 Client ID: ${this.config.clientId}`);
+      
+      // Common error codes and their meanings
+      if (code === 502) {
+        console.error(`   💡 Error 502: Connection refused - IB Gateway not running or API not enabled`);
+      } else if (code === 504) {
+        console.error(`   💡 Error 504: Connection timeout - IB Gateway not responding`);
+      } else if (code === 1100) {
+        console.error(`   💡 Error 1100: Connectivity between IB and TWS has been lost`);
+      } else if (code === 1101) {
+        console.error(`   💡 Error 1101: Connectivity between IB and TWS has been restored`);
+      }
+    });
+  }
+
   disconnect(): void {
+    // Stop keep-alive and prevent reconnection
+    this.stopKeepAlive();
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
     if (this.ib && (this.connected || this.connecting)) {
       try {
         console.log(`🔌 [TWS Client] Disconnecting clientId: ${this.config.clientId}`);
-        this.ib.disconnect();
+        // Clear IB instance BEFORE disconnect to prevent reconnect handler from firing
+        const ibToDisconnect = this.ib;
+        this.ib = null;
+        ibToDisconnect.disconnect();
       } catch (e) {
         // Ignore errors if already disconnected
         console.warn(`⚠️ [TWS Client] Error during disconnect:`, e);
@@ -270,7 +373,7 @@ export class TwsClient {
         if (this.connectPromise) {
           this.connectPromise = null;
         }
-        this.ib = null; // Clear IB instance to allow new connection with new clientId
+        this.ib = null; // Ensure IB instance is cleared
       }
     } else if (!this.ib) {
       // Already disconnected - just clear flags
@@ -279,6 +382,56 @@ export class TwsClient {
       if (this.connectPromise) {
         this.connectPromise = null;
       }
+    }
+  }
+  
+  /**
+   * Start keep-alive mechanism to prevent inactivity disconnects
+   * Requests account updates every 20 seconds to keep connection alive
+   * This is a lightweight request that doesn't require subscriptions
+   */
+  private startKeepAlive(): void {
+    // Clear existing interval if any
+    this.stopKeepAlive();
+    
+    // Send keep-alive every 20 seconds (IB Gateway typically disconnects after 30s of inactivity)
+    this.keepAliveInterval = setInterval(() => {
+      if (this.ib && this.connected) {
+        try {
+          // reqAccountUpdates() is a lightweight keep-alive request
+          // We already subscribe to account updates, so this just refreshes the subscription
+          // This keeps the connection active without creating new subscriptions
+          this.ib.reqAccountUpdates(true, ""); // true = subscribe, "" = all accounts
+          this.lastActivityTime = Date.now();
+          // Don't log every keep-alive to reduce noise - only log occasionally
+          if (Math.random() < 0.1) { // Log ~10% of keep-alives
+            const secondsSinceLastActivity = Math.round((Date.now() - this.lastActivityTime) / 1000);
+            console.log(`💓 [TWS Client] Keep-alive sent (last activity: ${secondsSinceLastActivity}s ago)`);
+          }
+        } catch (e) {
+          console.warn(`⚠️ [TWS Client] Keep-alive failed:`, e);
+          // If keep-alive fails, connection might be broken - mark as disconnected
+          if (this.ib) {
+            this.connected = false;
+          }
+        }
+      } else {
+        // Not connected - stop keep-alive
+        this.stopKeepAlive();
+      }
+    }, 20000); // Every 20 seconds
+    
+    console.log(`💓 [TWS Client] Keep-alive started (every 20 seconds)`);
+  }
+  
+  /**
+   * Stop keep-alive mechanism
+   */
+  private stopKeepAlive(): void {
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+      console.log(`💓 [TWS Client] Keep-alive stopped`);
     }
   }
 
@@ -316,6 +469,9 @@ export class TwsClient {
    */
   async getMarketDataSnapshot(symbol: string): Promise<IbkrMarketDataSnapshot> {
     await this.connect();
+    
+    // Update last activity time when making requests
+    this.lastActivityTime = Date.now();
 
     const lib = this.ensureIBLib();
     const reqId = Math.floor(Math.random() * 10000) + 1000;
@@ -746,38 +902,48 @@ export class TwsClient {
 }
 
 let clientInstance: TwsClient | null = null;
+const DEFAULT_PORT = 4001; // Paper Trading - most common
+const DEFAULT_HOST = "127.0.0.1";
+const DEFAULT_CLIENT_ID = 1; // Use a fixed Client ID for singleton to prevent conflicts
 
 export function getTwsClient(config?: TwsConfig): TwsClient {
-  // Use singleton pattern - always return the same instance
-  // Only create new instance if:
-  // 1. No instance exists
-  // 2. Existing instance failed to connect permanently (not just "not connected yet")
+  // Normalize config - use defaults if not provided, and always use same Client ID for singleton
+  const normalizedConfig: TwsConfig = {
+    host: config?.host || DEFAULT_HOST,
+    port: config?.port || DEFAULT_PORT,
+    clientId: DEFAULT_CLIENT_ID, // Always use same Client ID to prevent conflicts
+  };
   
   if (!clientInstance) {
     // First time - create new instance
-    clientInstance = new TwsClient(config);
-    console.log(`🆕 [TWS Client] Created new instance with clientId: ${clientInstance.getClientId()}`);
+    clientInstance = new TwsClient(normalizedConfig);
+    console.log(`🆕 [TWS Client Singleton] Created new instance`);
+    console.log(`   📍 Host: ${normalizedConfig.host}, Port: ${normalizedConfig.port}`);
+    console.log(`   🆔 Client ID: ${clientInstance.getClientId()} (fixed for singleton)`);
   } else {
     // Instance exists - check if we should reuse it
     // Only replace if we have different config (different port/host)
     const existingConfig = clientInstance.getConfig();
     const shouldReplace = 
-      config && 
-      ((config.port !== undefined && config.port !== existingConfig.port) ||
-       (config.host !== undefined && config.host !== existingConfig.host));
+      (normalizedConfig.port !== existingConfig.port) ||
+      (normalizedConfig.host !== existingConfig.host);
     
     if (shouldReplace) {
-      console.log(`🔄 [TWS Client] Replacing instance due to config change (port: ${existingConfig.port} -> ${config.port})`);
+      console.log(`🔄 [TWS Client Singleton] Replacing instance due to config change`);
+      console.log(`   Old: ${existingConfig.host}:${existingConfig.port}`);
+      console.log(`   New: ${normalizedConfig.host}:${normalizedConfig.port}`);
       try {
         clientInstance.disconnect();
       } catch (e) {
         // Ignore errors
       }
-      clientInstance = new TwsClient(config);
-      console.log(`🆕 [TWS Client] Created new instance with clientId: ${clientInstance.getClientId()}`);
+      clientInstance = new TwsClient(normalizedConfig);
+      console.log(`🆕 [TWS Client Singleton] Created new instance`);
+      console.log(`   🆔 Client ID: ${clientInstance.getClientId()}`);
     } else {
-      // Reuse existing instance (even if not connected - it will connect when needed)
-      // This prevents creating multiple instances for parallel requests
+      // Reuse existing instance
+      console.log(`♻️  [TWS Client Singleton] Reusing existing instance (${existingConfig.host}:${existingConfig.port})`);
+      console.log(`   🆔 Client ID: ${clientInstance.getClientId()}, Connected: ${clientInstance.isConnected()}`);
     }
   }
   
