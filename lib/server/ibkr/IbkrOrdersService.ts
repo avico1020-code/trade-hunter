@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Orders Service
- * 
+ *
  * Manages order placement, cancellation, and tracking
  * - Place orders (MKT, LMT, STP, etc.)
  * - Cancel orders
@@ -8,19 +8,19 @@
  * - Event-based order updates
  */
 
+import { getIbkrEventBus } from "./events";
 import { getIbkrConnectionManager } from "./IbkrConnectionManager";
 import { getIbkrContractsService } from "./IbkrContractsService";
-import { getIbkrEventBus } from "./events";
 import type {
-  PlaceOrderParams,
-  PlacedOrderResult,
+  IbkrContract,
   Order,
   OrderSide,
-  OrderType,
-  TimeInForce,
   OrderStatus,
-  IbkrContract,
+  OrderType,
   OrderUpdateCallback,
+  PlacedOrderResult,
+  PlaceOrderParams,
+  TimeInForce,
   UnsubscribeFn,
 } from "./types";
 
@@ -100,7 +100,11 @@ export class IbkrOrdersService {
     };
 
     // Add order-type specific parameters
-    if (params.orderType === "LMT" || params.orderType === "STP_LMT" || params.orderType === "TRAIL_LIMIT") {
+    if (
+      params.orderType === "LMT" ||
+      params.orderType === "STP_LMT" ||
+      params.orderType === "TRAIL_LIMIT"
+    ) {
       if (params.limitPrice === undefined) {
         throw new Error(`Limit price is required for ${params.orderType} orders`);
       }
@@ -142,16 +146,22 @@ export class IbkrOrdersService {
     this.orders.set(orderId, order);
 
     try {
-      console.log(`[Orders Service] Placing order ${orderId}: ${params.side} ${params.quantity} ${params.symbol} @ ${params.orderType}`);
-      
-      (client as any).placeOrder(orderId, {
-        conId: contract.conId,
-        symbol: contract.symbol,
-        secType: contract.secType,
-        exchange: contract.exchange,
-        currency: contract.currency,
-        primaryExchange: contract.primaryExchange,
-      }, ibOrder);
+      console.log(
+        `[Orders Service] Placing order ${orderId}: ${params.side} ${params.quantity} ${params.symbol} @ ${params.orderType}`
+      );
+
+      (client as any).placeOrder(
+        orderId,
+        {
+          conId: contract.conId,
+          symbol: contract.symbol,
+          secType: contract.secType,
+          exchange: contract.exchange,
+          currency: contract.currency,
+          primaryExchange: contract.primaryExchange,
+        },
+        ibOrder
+      );
 
       // Order is placed, status will be updated via callbacks
       return {
@@ -186,7 +196,7 @@ export class IbkrOrdersService {
     try {
       console.log(`[Orders Service] Cancelling order ${orderId}...`);
       (client as any).cancelOrder(orderId);
-      
+
       // Status will be updated to "Cancelled" via orderStatus callback
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -252,7 +262,7 @@ export class IbkrOrdersService {
       const onOpenOrderEnd = () => {
         if (requestCompleted) return;
         requestCompleted = true;
-        
+
         clearTimeout(timeout);
         (client as any).removeListener("openOrder", onOpenOrder);
         (client as any).removeListener("openOrderEnd", onOpenOrderEnd);
@@ -387,7 +397,8 @@ export class IbkrOrdersService {
         status,
         filled: orderStatus.filled,
         remaining: orderStatus.remaining,
-        avgFillPrice: orderStatus.avgFillPrice > 0 ? orderStatus.avgFillPrice : existingOrder.avgFillPrice,
+        avgFillPrice:
+          orderStatus.avgFillPrice > 0 ? orderStatus.avgFillPrice : existingOrder.avgFillPrice,
       };
 
       if (status === "Filled" && existingOrder.status !== "Filled") {
@@ -395,7 +406,7 @@ export class IbkrOrdersService {
       }
 
       this.orders.set(orderId, updatedOrder);
-      
+
       // Emit order update event
       this.eventBus.emitOrderUpdate(updatedOrder);
 
@@ -436,4 +447,3 @@ export class IbkrOrdersService {
 export function getIbkrOrdersService(): IbkrOrdersService {
   return IbkrOrdersService.getInstance();
 }
-

@@ -346,36 +346,51 @@ export default defineSchema({
   // Symbol Scoring System - Stores department scores and Master Score
   symbolScores: defineTable({
     symbol: v.string(), // "AAPL", "GOOGL", etc.
-    
+
     // Department Scores (כל מחלקה עם הציון שלה)
-    technicalScore: v.number(),      // Technical Indicators Score [-10, +10]
-    newsScore: v.number(),            // News Scoring [-10, +10]
-    macroScore: v.number(),           // Macro Scoring [-10, +10]
-    sectorScore: v.number(),          // Sector Scoring [-10, +10]
-    optionsFlowScore: v.number(),     // Options Flow [-10, +10]
-    microCompanyScore: v.number(),    // Micro Company [-10, +10]
-    
+    technicalScore: v.number(), // Technical Indicators Score [-10, +10]
+    newsScore: v.number(), // News Scoring [-10, +10]
+    macroScore: v.number(), // Macro Scoring [-10, +10]
+    sectorScore: v.number(), // Sector Scoring [-10, +10]
+    optionsFlowScore: v.number(), // Options Flow [-10, +10]
+    microCompanyScore: v.number(), // Micro Company [-10, +10]
+
     // Master Score (הציון הסופי המשוקלל)
-    masterScore: v.number(),          // Unbounded (יכול להיות מעבר ל-10)
-    direction: v.union(
-      v.literal("LONG"), 
-      v.literal("SHORT"), 
-      v.literal("NEUTRAL")
-    ),
-    
+    masterScore: v.number(), // Unbounded (יכול להיות מעבר ל-10)
+    direction: v.union(v.literal("LONG"), v.literal("SHORT"), v.literal("NEUTRAL")),
+
     // Component Breakdown (פירוט מפורט מכל מחלקה)
     // זה יכול לכלול breakdown פנימי של כל מחלקה (אינדיקטורים, קבוצות וכו')
     componentBreakdown: v.optional(v.any()),
-    
+
     // Metadata
-    lastUpdated: v.number(),          // Unix timestamp
+    lastUpdated: v.number(), // Unix timestamp
     refreshTrigger: v.optional(v.string()), // איזו מחלקה גרמה לרענון (TECHNICAL, NEWS, etc.)
     refreshReason: v.optional(v.string()), // סיבה ספציפית (למשל "Earnings release", "VIX spike")
-    
   })
     .index("by_symbol", ["symbol"])
     .index("by_master_score", ["masterScore"])
     .index("by_direction", ["direction"])
     .index("by_last_updated", ["lastUpdated"])
     .index("by_symbol_and_updated", ["symbol", "lastUpdated"]),
+
+  // Intraday Bars - Real-time market data bars (Phase 4)
+  // Retention: Last 3 trading days only
+  intradayBars: defineTable({
+    symbol: v.string(), // "AAPL", "MSFT", etc.
+    timeframe: v.string(), // "1s" | "5s" | "1m"
+    tradingDay: v.string(), // "2025-12-08" in market timezone (New York)
+    startTs: v.number(), // Bar start timestamp (Unix milliseconds, inclusive)
+    endTs: v.number(), // Bar end timestamp (Unix milliseconds, exclusive)
+    open: v.number(),
+    high: v.number(),
+    low: v.number(),
+    close: v.number(),
+    volume: v.number(),
+    createdAt: v.number(), // When bar was saved (for diagnostics/TTL)
+  })
+    .index("by_symbol_timeframe_day", ["symbol", "timeframe", "tradingDay"])
+    .index("by_trading_day", ["tradingDay"])
+    .index("by_symbol_and_timeframe", ["symbol", "timeframe"])
+    .index("by_symbol_timeframe_start", ["symbol", "timeframe", "startTs"]),
 });

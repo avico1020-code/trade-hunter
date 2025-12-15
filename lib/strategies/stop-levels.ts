@@ -6,18 +6,18 @@
 // פונקציות עזר לחישוב סטופים על בסיס נרות היפוך, רמות תמיכה/התנגדות, וכו'
 // כל אסטרטגיה יכולה להשתמש בפונקציות האלה
 
-import { Candle } from "./double-top";
 import {
   findNearestReversalCandle,
   getStopFromReversalCandle,
   ReversalCandleInfo,
 } from "./candle-patterns";
+import type { Candle } from "./double-top";
 import {
-  SupportResistanceLevel,
-  findNearestSupportResistance,
-  findHorizontalSupportResistance,
   findDynamicSupportResistance,
+  findHorizontalSupportResistance,
+  findNearestSupportResistance,
   getPivotLevelsFromCandle,
+  SupportResistanceLevel,
 } from "./support-resistance";
 
 // =========================

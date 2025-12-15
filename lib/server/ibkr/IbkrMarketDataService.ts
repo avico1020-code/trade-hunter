@@ -1,24 +1,30 @@
 /**
  * IBKR Integration Layer - Market Data Service
- * 
- * Real-time streaming market data ONLY (NO snapshots)
+ *
+ * REAL-TIME STREAMING market data ONLY - NO SNAPSHOTS SUPPORTED
+ *
+ * This service ONLY supports streaming mode (snapshot=false in reqMktData).
+ * Snapshot mode is explicitly NOT supported and will never be used.
+ *
+ * Features:
  * - Maintains subscription registry with refCount
  * - Reuses subscriptions for multiple consumers
- * - Uses reqMktData for streaming
- * - Never uses snapshot requests for real-time flow
+ * - Uses reqMktData with snapshot=false (ALWAYS streaming)
+ * - Never uses snapshot requests - streaming only!
  */
 
+import { getMarketDataHub } from "@/lib/server/market-data";
+import { getIbkrEventBus } from "./events";
 import { getIbkrConnectionManager } from "./IbkrConnectionManager";
 import { getIbkrContractsService } from "./IbkrContractsService";
-import { getIbkrEventBus } from "./events";
 import type {
-  MarketTick,
-  MarketDataSubscription,
-  MarketDataRegistry,
-  MarketDataOptions,
   IbkrContract,
-  UnsubscribeFn,
+  MarketDataOptions,
+  MarketDataRegistry,
+  MarketDataSubscription,
+  MarketTick,
   MarketTickCallback,
+  UnsubscribeFn,
 } from "./types";
 
 export class IbkrMarketDataService {
@@ -26,6 +32,7 @@ export class IbkrMarketDataService {
   private registry: MarketDataRegistry = new Map();
   private nextTickerId: number = 1000; // Start from 1000 to avoid conflicts
   private eventBus = getIbkrEventBus();
+  private hub = getMarketDataHub();
 
   private constructor() {
     // Subscribe to connection state changes to handle reconnections
@@ -35,6 +42,44 @@ export class IbkrMarketDataService {
         this.resubscribeAll();
       }
     });
+
+    // CRITICAL: Bridge IBKR streaming ticks to MarketDataHub
+    // This is the missing link that prevents real-time streaming from working!
+    // Listen to all market tick events and forward them to MarketDataHub
+    this.eventBus.onMarketTick((symbol, tick) => {
+      // Convert IbkrMarketDataService's MarketTick to MarketDataHub's MarketTick format
+      // MarketDataHub expects: { symbol, price, size?, ts }
+      // IbkrMarketDataService provides: { symbol, last, bid, ask, close, volume, lastSize, timestamp, ... }
+
+      // Use last price if available, otherwise fallback to bid/ask midpoint, then close
+      const price =
+        tick.last ?? (tick.bid && tick.ask ? (tick.bid + tick.ask) / 2 : null) ?? tick.close ?? 0;
+
+      // Use lastSize if available, otherwise volume
+      const size = tick.lastSize ?? tick.volume ?? 0;
+
+      // Only forward if we have a valid price
+      if (price > 0) {
+        const hubTick = {
+          symbol: tick.symbol,
+          price,
+          size,
+          ts: tick.timestamp ?? Date.now(),
+        };
+
+        // Forward to MarketDataHub for bar building and real-time updates
+        console.log(
+          `[IbkrMarketDataService] 🔄 Forwarding tick to MarketDataHub: ${symbol} = $${price.toFixed(2)}`
+        );
+        this.hub.handleTick(hubTick);
+      } else {
+        console.warn(
+          `[IbkrMarketDataService] ⚠️ Received tick for ${symbol} with invalid price (last=${tick.last}, bid=${tick.bid}, ask=${tick.ask}, close=${tick.close})`
+        );
+      }
+    });
+
+    console.log("[IbkrMarketDataService] ✅ Bridge initialized: IBKR streaming → MarketDataHub");
   }
 
   static getInstance(): IbkrMarketDataService {
@@ -46,16 +91,14 @@ export class IbkrMarketDataService {
 
   /**
    * Subscribe to streaming market data for a symbol
-   * Uses reqMktData (streaming) - NEVER uses snapshots
-   * 
+   * ALWAYS uses reqMktData in STREAMING mode (snapshot=false)
+   * Snapshot mode is NOT supported - only real-time streaming is available
+   *
    * @param symbol Stock symbol
-   * @param options Optional market data options
+   * @param options Optional market data options (NOTE: snapshot option is ignored - always streaming)
    * @returns Promise that resolves when subscription is active and first tick received
    */
-  async subscribeMarketData(
-    symbol: string,
-    options?: MarketDataOptions
-  ): Promise<void> {
+  async subscribeMarketData(symbol: string, options?: MarketDataOptions): Promise<void> {
     const symbolKey = symbol.toUpperCase();
 
     // Check if subscription already exists
@@ -123,11 +166,11 @@ export class IbkrMarketDataService {
           clearTimeout(timeout);
 
           console.log(`[Market Data] ✅ Subscription active for ${symbolKey}, first tick received`);
-          
+
           // Remove the first-tick handler after first tick
           const unsubscribe = this.eventBus.onMarketTick(firstTickHandler);
           unsubscribe();
-          
+
           resolve();
         }
       };
@@ -135,26 +178,94 @@ export class IbkrMarketDataService {
       // Listen for first tick
       const unsubscribeFirstTick = this.eventBus.onMarketTick(firstTickHandler);
 
+      // Listen for IBKR errors specific to this subscription
+      const errorHandler = (err: Error, code: number, reqId: number) => {
+        console.log(
+          `[Market Data] 🔴 IBKR ERROR received: code=${code}, reqId=${reqId}, message=${err.message}`
+        );
+
+        // Check if this error is for our ticker
+        if (reqId === tickerId) {
+          console.error(
+            `[Market Data] ❌ Error for ${symbolKey} (tickerId=${tickerId}): ${err.message} (code: ${code})`
+          );
+
+          // Common error codes:
+          // 10090 - Part of requested market data is not subscribed
+          // 10091 - Market data is not supported for this contract
+          // 10168 - Requested market data is not subscribed. Displaying delayed data
+          // 354 - Requested market data is not subscribed
+
+          if (code === 10090 || code === 10091 || code === 354 || code === 10168) {
+            console.warn(
+              `[Market Data] ⚠️ Market data subscription issue for ${symbolKey}: ${err.message}`
+            );
+            console.warn(
+              `[Market Data] ⚠️ This usually means you need to subscribe to real-time market data in IBKR`
+            );
+          }
+        }
+      };
+
+      // Register error handler on client
+      (client as any).on("error", errorHandler);
+
       try {
         // Build generic tick list
         const genericTickList = options?.genericTickList || "";
 
-        // Request streaming market data (NOT snapshot)
-        console.log(`[Market Data] Subscribing to streaming data for ${symbolKey} (tickerId: ${tickerId})`);
-        (client as any).reqMktData(
-          tickerId,
-          {
+        // Request STREAMING market data (ALWAYS streaming, NO snapshots)
+        // CRITICAL: snapshot=false means STREAMING (real-time updates)
+        // We ALWAYS use streaming mode - snapshot mode is not supported
+        const SNAPSHOT_MODE = false; // ALWAYS false - streaming only!
+
+        console.log(
+          `[Market Data] 🔴 STREAMING subscription for ${symbolKey} (tickerId: ${tickerId})`
+        );
+        console.log(
+          `[Market Data]   Contract: ${contract.symbol} (${contract.secType}) on ${contract.exchange || "SMART"}`
+        );
+        console.log(`[Market Data]   Contract ID: ${contract.conId || "N/A"}`);
+        console.log(
+          `[Market Data]   Generic tick list: "${genericTickList || "(empty - default)"}"`
+        );
+        console.log(`[Market Data]   Mode: STREAMING ONLY (snapshot=false)`);
+
+        try {
+          const contractForRequest = {
             conId: contract.conId,
             symbol: contract.symbol,
             secType: contract.secType,
-            exchange: contract.exchange,
-            currency: contract.currency,
+            exchange: contract.exchange || "SMART",
+            currency: contract.currency || "USD",
             primaryExchange: contract.primaryExchange,
-          },
-          genericTickList,
-          options?.snapshot || false, // false = streaming (default), true = snapshot (one-time)
-          options?.regulatorySnapshot || false
-        );
+          };
+
+          console.log(`[Market Data] 📤 Sending reqMktData to IBKR:`);
+          console.log(`[Market Data]   tickerId: ${tickerId}`);
+          console.log(`[Market Data]   contract: ${JSON.stringify(contractForRequest)}`);
+          console.log(`[Market Data]   genericTickList: "${genericTickList || ""}"`);
+          console.log(`[Market Data]   snapshot: ${SNAPSHOT_MODE} (false=STREAMING)`);
+
+          (client as any).reqMktData(
+            tickerId,
+            contractForRequest,
+            genericTickList || "", // Empty string = default tick types
+            SNAPSHOT_MODE, // ALWAYS false = STREAMING (real-time)
+            options?.regulatorySnapshot || false
+          );
+
+          console.log(
+            `[Market Data] ✅ reqMktData STREAMING call completed for ${symbolKey} - waiting for real-time ticks...`
+          );
+          console.log(`[Market Data] ⏳ If no ticks arrive within 15 seconds, check:`);
+          console.log(`[Market Data]   1. IBKR market data subscription is active`);
+          console.log(`[Market Data]   2. Market is open (9:30 AM - 4:00 PM ET)`);
+          console.log(`[Market Data]   3. Contract is correct`);
+        } catch (reqError) {
+          console.error(`[Market Data] ❌ reqMktData STREAMING failed for ${symbolKey}:`, reqError);
+          throw reqError;
+        }
       } catch (error) {
         clearTimeout(timeout);
         this.registry.delete(symbolKey);
@@ -187,7 +298,9 @@ export class IbkrMarketDataService {
         const connectionManager = getIbkrConnectionManager();
         if (connectionManager.isConnected()) {
           const client = connectionManager.getClient();
-          console.log(`[Market Data] Cancelling subscription for ${symbolKey} (tickerId: ${subscription.tickerId})`);
+          console.log(
+            `[Market Data] Cancelling subscription for ${symbolKey} (tickerId: ${subscription.tickerId})`
+          );
           (client as any).cancelMktData(subscription.tickerId);
         }
       } catch (error) {
@@ -233,13 +346,18 @@ export class IbkrMarketDataService {
   // Private Methods
   // ============================================================================
 
-  private setupTickHandlers(
-    tickerId: number,
-    symbolKey: string,
-    client: any
-  ): void {
+  private setupTickHandlers(tickerId: number, symbolKey: string, client: any): void {
+    // CRITICAL: @stoqey/ib package uses string event names like "tickPrice", "tickSize", "tickString"
+    // These are the standard IBKR API event names that work with both TWS and IB Gateway
+    // The event names are case-sensitive and must match exactly what the package emits
+
+    // Use string event names directly (this is what @stoqey/ib uses)
+    const EVENT_TICK_PRICE = "tickPrice";
+    const EVENT_TICK_SIZE = "tickSize";
+    const EVENT_TICK_STRING = "tickString";
+
     // Handle tickPrice updates
-    client.on("tickPrice", (reqId: number, field: number, price: number) => {
+    const tickPriceHandler = (reqId: number, field: number, price: number) => {
       if (reqId !== tickerId) return;
 
       const subscription = this.registry.get(symbolKey);
@@ -276,6 +394,9 @@ export class IbkrMarketDataService {
           break;
         case 4: // LAST
           subscription.lastTick.last = price;
+          console.log(
+            `[Market Data] 🔴 REAL-TIME TICK PRICE for ${symbolKey}: LAST=${price} (tickerId=${tickerId}, field=4)`
+          );
           break;
         case 6: // HIGH
           subscription.lastTick.high = price;
@@ -296,10 +417,10 @@ export class IbkrMarketDataService {
 
       // Emit tick event
       this.eventBus.emitMarketTick(symbolKey, subscription.lastTick);
-    });
+    };
 
     // Handle tickSize updates
-    client.on("tickSize", (reqId: number, field: number, size: number) => {
+    const tickSizeHandler = (reqId: number, field: number, size: number) => {
       if (reqId !== tickerId) return;
 
       const subscription = this.registry.get(symbolKey);
@@ -327,10 +448,10 @@ export class IbkrMarketDataService {
 
       // Emit tick event
       this.eventBus.emitMarketTick(symbolKey, subscription.lastTick);
-    });
+    };
 
     // Handle tickString updates (for additional data like volume, etc.)
-    client.on("tickString", (reqId: number, field: number, value: string) => {
+    const tickStringHandler = (reqId: number, field: number, value: string) => {
       if (reqId !== tickerId) return;
 
       const subscription = this.registry.get(symbolKey);
@@ -346,14 +467,54 @@ export class IbkrMarketDataService {
           this.eventBus.emitMarketTick(symbolKey, subscription.lastTick);
         }
       }
-    });
+    };
+
+    // Register handlers - @stoqey/ib uses standard IBKR event names as strings
+    // IMPORTANT: These handlers will fire on EVERY tickPrice/tickSize/tickString event
+    // We filter by reqId inside the handlers to only process events for our tickerId
+    client.on(EVENT_TICK_PRICE, tickPriceHandler);
+    client.on(EVENT_TICK_SIZE, tickSizeHandler);
+    client.on(EVENT_TICK_STRING, tickStringHandler);
+
+    // Debug: Add a generic listener to see ALL events coming from IBKR
+    const debugAllEvents = (eventName: string, ...args: any[]) => {
+      if (eventName.startsWith("tick")) {
+        console.log(`[Market Data DEBUG] 🔵 RAW EVENT: ${eventName}`, args.slice(0, 3));
+      }
+    };
+
+    // Listen for all events to debug
+    if (!client._debugListenerAdded) {
+      client._debugListenerAdded = true;
+      const originalEmit = client.emit.bind(client);
+      client.emit = (eventName: string, ...args: any[]) => {
+        if (eventName.startsWith("tick")) {
+          console.log(
+            `[Market Data DEBUG] 🔵 EMIT: ${eventName}`,
+            JSON.stringify(args.slice(0, 3))
+          );
+        }
+        return originalEmit(eventName, ...args);
+      };
+      console.log(`[Market Data DEBUG] ✅ Added debug listener to intercept ALL IBKR events`);
+    }
+
+    console.log(
+      `[Market Data] ✅ Registered real-time streaming handlers for ${symbolKey} (tickerId=${tickerId})`
+    );
+    console.log(`[Market Data]   - Listening for: tickPrice, tickSize, tickString events`);
+    console.log(
+      `[Market Data]   - Client event names: ${client.eventNames ? client.eventNames().join(", ") : "N/A"}`
+    );
   }
 
   private async resubscribeAll(): Promise<void> {
-    console.log(`[Market Data] Re-subscribing to ${this.registry.size} symbols after reconnection...`);
-    
+    console.log(
+      `[Market Data] Re-subscribing to ${this.registry.size} symbols after reconnection...`
+    );
+
     const symbols = Array.from(this.registry.keys());
-    
+
     for (const symbol of symbols) {
       const subscription = this.registry.get(symbol);
       if (!subscription) continue;
@@ -378,4 +539,3 @@ export class IbkrMarketDataService {
 export function getIbkrMarketDataService(): IbkrMarketDataService {
   return IbkrMarketDataService.getInstance();
 }
-

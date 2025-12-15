@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Portfolio Service
- * 
+ *
  * Manages portfolio positions and P&L
  * - Open positions
  * - Realized/unrealized P&L
@@ -9,7 +9,7 @@
 
 import { getIbkrConnectionManager } from "./IbkrConnectionManager";
 import { getIbkrContractsService } from "./IbkrContractsService";
-import type { Position, IbkrContract } from "./types";
+import type { IbkrContract, Position } from "./types";
 
 export class IbkrPortfolioService {
   private static instance: IbkrPortfolioService | null = null;
@@ -37,22 +37,19 @@ export class IbkrPortfolioService {
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error(`Get positions timeout for ${accountId || "all accounts"} after 10 seconds`));
+        reject(
+          new Error(`Get positions timeout for ${accountId || "all accounts"} after 10 seconds`)
+        );
       }, 10000);
 
       const positions: Position[] = [];
       const positionMap = new Map<string, Position>(); // keyed by accountId:conId
 
-      const onPosition = (
-        account: string,
-        contract: any,
-        position: number,
-        avgCost: number
-      ) => {
+      const onPosition = (account: string, contract: any, position: number, avgCost: number) => {
         if (accountId !== "" && account !== accountId) return;
 
         const key = `${account}:${contract.conId || contract.symbol}`;
-        
+
         const ibkrContract: IbkrContract = {
           conId: contract.conId,
           symbol: contract.symbol,
@@ -91,7 +88,9 @@ export class IbkrPortfolioService {
           this.positionsCache.set(cacheKey, pos);
         });
 
-        console.log(`[Portfolio Service] ✅ Received ${positions.length} positions for ${accountId || "all accounts"}`);
+        console.log(
+          `[Portfolio Service] ✅ Received ${positions.length} positions for ${accountId || "all accounts"}`
+        );
         resolve(positions);
       };
 
@@ -112,7 +111,9 @@ export class IbkrPortfolioService {
       (client as any).once("error", onError);
 
       try {
-        console.log(`[Portfolio Service] Requesting positions for ${accountId || "all accounts"}...`);
+        console.log(
+          `[Portfolio Service] Requesting positions for ${accountId || "all accounts"}...`
+        );
         (client as any).reqPositions(accountId);
       } catch (error) {
         clearTimeout(timeout);
@@ -132,7 +133,9 @@ export class IbkrPortfolioService {
    */
   async subscribePositions(accountId: string = ""): Promise<void> {
     if (this.subscribedAccounts.has(accountId || "ALL")) {
-      console.log(`[Portfolio Service] Already subscribed to positions for ${accountId || "all accounts"}`);
+      console.log(
+        `[Portfolio Service] Already subscribed to positions for ${accountId || "all accounts"}`
+      );
       return;
     }
 
@@ -141,7 +144,9 @@ export class IbkrPortfolioService {
     const client = connectionManager.getClient();
 
     try {
-      console.log(`[Portfolio Service] Subscribing to position updates for ${accountId || "all accounts"}...`);
+      console.log(
+        `[Portfolio Service] Subscribing to position updates for ${accountId || "all accounts"}...`
+      );
       (client as any).reqPositions(accountId);
       this.subscribedAccounts.add(accountId || "ALL");
 
@@ -149,7 +154,7 @@ export class IbkrPortfolioService {
       client.on("position", (account: string, contract: any, position: number, avgCost: number) => {
         if (accountId === "" || account === accountId) {
           const key = `${account}:${contract.symbol}`;
-          
+
           const ibkrContract: IbkrContract = {
             conId: contract.conId,
             symbol: contract.symbol,
@@ -187,7 +192,10 @@ export class IbkrPortfolioService {
    * @param contract Contract or symbol
    * @returns Realized and unrealized P&L
    */
-  async getPnL(accountId: string, contractOrSymbol: IbkrContract | string): Promise<{
+  async getPnL(
+    accountId: string,
+    contractOrSymbol: IbkrContract | string
+  ): Promise<{
     realizedPnL: number | null;
     unrealizedPnL: number | null;
   }> {
@@ -208,16 +216,23 @@ export class IbkrPortfolioService {
         reject(new Error(`Get P&L timeout for ${contract.symbol} after 10 seconds`));
       }, 10000);
 
-      let realizedPnL: number | null = null;
-      let unrealizedPnL: number | null = null;
+      const realizedPnL: number | null = null;
+      const unrealizedPnL: number | null = null;
 
-      const onPnL = (reqId: number, dailyPnL: number, unrealizedPnL: number, realizedPnL: number) => {
+      const onPnL = (
+        reqId: number,
+        dailyPnL: number,
+        unrealizedPnL: number,
+        realizedPnL: number
+      ) => {
         clearTimeout(timeout);
         (client as any).removeListener("pnl", onPnL);
         (client as any).removeListener("pnlSingle", onPnL);
         (client as any).removeListener("error", onError);
 
-        console.log(`[Portfolio Service] ✅ Received P&L for ${contract.symbol}: Realized=${realizedPnL}, Unrealized=${unrealizedPnL}`);
+        console.log(
+          `[Portfolio Service] ✅ Received P&L for ${contract.symbol}: Realized=${realizedPnL}, Unrealized=${unrealizedPnL}`
+        );
         resolve({ realizedPnL, unrealizedPnL });
       };
 
@@ -234,7 +249,9 @@ export class IbkrPortfolioService {
         (client as any).removeListener("pnlSingle", onPnLSingle);
         (client as any).removeListener("error", onError);
 
-        console.log(`[Portfolio Service] ✅ Received P&L for ${contract.symbol}: Realized=${realizedPnL}, Unrealized=${unrealizedPnL}`);
+        console.log(
+          `[Portfolio Service] ✅ Received P&L for ${contract.symbol}: Realized=${realizedPnL}, Unrealized=${unrealizedPnL}`
+        );
         resolve({ realizedPnL, unrealizedPnL });
       };
 
@@ -299,4 +316,3 @@ export class IbkrPortfolioService {
 export function getIbkrPortfolioService(): IbkrPortfolioService {
   return IbkrPortfolioService.getInstance();
 }
-

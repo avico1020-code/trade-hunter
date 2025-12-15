@@ -20,15 +20,15 @@
 
 // אלא רק משתמש בנתונים שמגיעים מה-PatternFoundEvent.
 
+import type { StrategyOrchestrator } from "../engine/strategy-orchestrator";
 import {
-  PatternFoundEvent,
-  IndicatorSnapshot,
+  type IndicatorSnapshot,
+  type IPatternStrategy,
   MasterSymbolInfo,
-  IPatternStrategy,
+  type PatternFoundEvent,
 } from "../scanner/trade-pattern-scanner";
+import type { StrategyPhase, StrategyState } from "../strategies/strategy-state";
 import type { Candle } from "../strategies/types";
-import type { StrategyState, StrategyPhase } from "../strategies/strategy-state";
-import { StrategyOrchestrator } from "../engine/strategy-orchestrator";
 
 export type ExecutionMode = "LIVE" | "DEMO" | "BACKTEST";
 export type TradeDirection = "LONG" | "SHORT";
@@ -267,13 +267,22 @@ export class ExecutionEngine {
     if (this.config.dailyLossLimit !== undefined && this.config.dailyLossLimit < 0) {
       throw new Error("ExecutionEngineConfig: dailyLossLimit must be non-negative");
     }
-    if (this.config.maxDrawdownPct !== undefined && (this.config.maxDrawdownPct < 0 || this.config.maxDrawdownPct > 100)) {
+    if (
+      this.config.maxDrawdownPct !== undefined &&
+      (this.config.maxDrawdownPct < 0 || this.config.maxDrawdownPct > 100)
+    ) {
       throw new Error("ExecutionEngineConfig: maxDrawdownPct must be between 0 and 100");
     }
-    if (this.config.maxPositionSizePerSymbol !== undefined && this.config.maxPositionSizePerSymbol <= 0) {
+    if (
+      this.config.maxPositionSizePerSymbol !== undefined &&
+      this.config.maxPositionSizePerSymbol <= 0
+    ) {
       throw new Error("ExecutionEngineConfig: maxPositionSizePerSymbol must be positive");
     }
-    if (this.config.circuitBreakerEnabled && this.config.circuitBreakerFailureThreshold !== undefined) {
+    if (
+      this.config.circuitBreakerEnabled &&
+      this.config.circuitBreakerFailureThreshold !== undefined
+    ) {
       if (this.config.circuitBreakerFailureThreshold <= 0) {
         throw new Error("ExecutionEngineConfig: circuitBreakerFailureThreshold must be positive");
       }
@@ -315,34 +324,24 @@ export class ExecutionEngine {
         }
 
         // Get or create state from orchestrator
-        let currentState = this.orchestrator.getState(
-          event.strategyName,
-          event.symbol
-        );
+        let currentState = this.orchestrator.getState(event.strategyName, event.symbol);
 
         // If state doesn't exist and pattern was found, create initial state
         if (!currentState && event.patternState.patternFound) {
-          currentState = this.orchestrator.getOrCreateState(
-            event.strategyName,
-            event.symbol
-          );
+          currentState = this.orchestrator.getOrCreateState(event.strategyName, event.symbol);
           // Update state with pattern data
-          currentState = this.orchestrator.updateState(
-            event.strategyName,
-            event.symbol,
-            {
-              phase: "entry1",
-              custom: {
-                firstPeakIdx: event.patternState.firstPeakIdx,
-                secondPeakIdx: event.patternState.secondPeakIdx,
-                troughIdx: event.patternState.troughIdx,
-                neckline: event.patternState.neckline,
-                confirmCount: event.patternState.confirmCount,
-                earlyHeadsUp: event.patternState.earlyHeadsUp,
-                secondPeakHigh: event.patternState.secondPeakHigh,
-              },
-            }
-          );
+          currentState = this.orchestrator.updateState(event.strategyName, event.symbol, {
+            phase: "entry1",
+            custom: {
+              firstPeakIdx: event.patternState.firstPeakIdx,
+              secondPeakIdx: event.patternState.secondPeakIdx,
+              troughIdx: event.patternState.troughIdx,
+              neckline: event.patternState.neckline,
+              confirmCount: event.patternState.confirmCount,
+              earlyHeadsUp: event.patternState.earlyHeadsUp,
+              secondPeakHigh: event.patternState.secondPeakHigh,
+            },
+          });
         }
 
         // If state is invalidated, skip processing
@@ -359,40 +358,16 @@ export class ExecutionEngine {
             return; // No pattern, continue searching
           }
 
-          await this.handleEntry1Phase(
-            event,
-            strategy,
-            currentState!,
-            candles,
-            indicators
-          );
+          await this.handleEntry1Phase(event, strategy, currentState!, candles, indicators);
         } else if (phase === "entry1") {
           // Manage entry1 position, check exit1 and entry2
-          await this.handleEntry1ActivePhase(
-            event,
-            strategy,
-            currentState!,
-            candles,
-            indicators
-          );
+          await this.handleEntry1ActivePhase(event, strategy, currentState!, candles, indicators);
         } else if (phase === "entry2") {
           // Manage entry2 position, check exit2
-          await this.handleEntry2ActivePhase(
-            event,
-            strategy,
-            currentState!,
-            candles,
-            indicators
-          );
+          await this.handleEntry2ActivePhase(event, strategy, currentState!, candles, indicators);
         } else if (phase === "active") {
           // Active position - check exit conditions
-          await this.handleActivePositionPhase(
-            event,
-            strategy,
-            currentState!,
-            candles,
-            indicators
-          );
+          await this.handleActivePositionPhase(event, strategy, currentState!, candles, indicators);
         } else if (phase === "exit") {
           // Exit phase - close position and reset
           await this.handleExitPhase(event, strategy, currentState!);
@@ -426,31 +401,20 @@ export class ExecutionEngine {
     }
 
     // 2. Check if position already exists for this strategy+symbol
-    const existingPosition = this.findPositionByStrategyAndSymbol(
-      event.strategyName,
-      event.symbol
-    );
+    const existingPosition = this.findPositionByStrategyAndSymbol(event.strategyName, event.symbol);
     if (existingPosition) {
       return; // Already have position from this strategy
     }
 
     // 3. Check entry1 conditions using strategy method
-    const entrySignal = strategy.entryFirst(
-      candles,
-      event.patternState,
-      state
-    );
+    const entrySignal = strategy.entryFirst(candles, event.patternState, state);
 
     if (!entrySignal.enter || !entrySignal.price) {
       return; // Entry conditions not met
     }
 
     // 4. Get stop levels from strategy
-    const stops = strategy.stopsForEntry1(
-      candles,
-      event.patternState,
-      state
-    );
+    const stops = strategy.stopsForEntry1(candles, event.patternState, state);
 
     if (!stops || !stops.initial) {
       console.warn("[ExecutionEngine] No stop levels from strategy", {
@@ -488,12 +452,7 @@ export class ExecutionEngine {
     }
 
     // 7. Build trade setup
-    const setup = this.buildTradeSetupFromEntry(
-      event,
-      entryPrice,
-      stopLoss,
-      direction
-    );
+    const setup = this.buildTradeSetupFromEntry(event, entryPrice, stopLoss, direction);
 
     // 8. Validate setup
     if (
@@ -575,10 +534,7 @@ export class ExecutionEngine {
     indicators?: IndicatorSnapshot
   ): Promise<void> {
     // 1. Find existing position
-    const position = this.findPositionByStrategyAndSymbol(
-      event.strategyName,
-      event.symbol
-    );
+    const position = this.findPositionByStrategyAndSymbol(event.strategyName, event.symbol);
 
     if (!position) {
       // Position doesn't exist but state says entry1 - reset state
@@ -589,20 +545,11 @@ export class ExecutionEngine {
     // 2. Update position price (if needed)
     const lastCandle = candles[candles.length - 1];
     if (lastCandle) {
-      await this.onMarketPriceUpdate(
-        event.symbol,
-        lastCandle.close,
-        candles,
-        indicators
-      );
+      await this.onMarketPriceUpdate(event.symbol, lastCandle.close, candles, indicators);
     }
 
     // 3. Check exit1 conditions
-    const exitSignal = strategy.exitFirst(
-      candles,
-      event.patternState,
-      state
-    );
+    const exitSignal = strategy.exitFirst(candles, event.patternState, state);
 
     if (exitSignal.exit) {
       // Close entry1 position
@@ -614,19 +561,11 @@ export class ExecutionEngine {
     }
 
     // 4. Check entry2 conditions
-    const entry2Signal = strategy.entrySecond(
-      candles,
-      event.patternState,
-      state
-    );
+    const entry2Signal = strategy.entrySecond(candles, event.patternState, state);
 
     if (entry2Signal.enter && entry2Signal.price) {
       // Entry2 triggered - this will be handled in next phase
-      const stops2 = strategy.stopsForEntry2(
-        candles,
-        event.patternState,
-        state
-      );
+      const stops2 = strategy.stopsForEntry2(candles, event.patternState, state);
 
       if (stops2 && stops2.initial) {
         this.orchestrator.updateState(event.strategyName, event.symbol, {
@@ -653,10 +592,7 @@ export class ExecutionEngine {
     indicators?: IndicatorSnapshot
   ): Promise<void> {
     // 1. Find existing position
-    const position = this.findPositionByStrategyAndSymbol(
-      event.strategyName,
-      event.symbol
-    );
+    const position = this.findPositionByStrategyAndSymbol(event.strategyName, event.symbol);
 
     if (!position) {
       // Position doesn't exist - move to active phase or reset
@@ -673,27 +609,14 @@ export class ExecutionEngine {
     // 2. Update position price
     const lastCandle = candles[candles.length - 1];
     if (lastCandle) {
-      await this.onMarketPriceUpdate(
-        event.symbol,
-        lastCandle.close,
-        candles,
-        indicators
-      );
+      await this.onMarketPriceUpdate(event.symbol, lastCandle.close, candles, indicators);
     }
 
     // 3. Check exit2 conditions
-    const exitSignal = strategy.exitSecond(
-      candles,
-      event.patternState,
-      state
-    );
+    const exitSignal = strategy.exitSecond(candles, event.patternState, state);
 
     if (exitSignal.exit) {
-      await this.closePosition(
-        position,
-        exitSignal.price || position.lastPrice,
-        "strategy-exit"
-      );
+      await this.closePosition(position, exitSignal.price || position.lastPrice, "strategy-exit");
       this.orchestrator.updateState(event.strategyName, event.symbol, {
         phase: "exit",
       });
@@ -718,10 +641,7 @@ export class ExecutionEngine {
     candles: Candle[],
     indicators?: IndicatorSnapshot
   ): Promise<void> {
-    const position = this.findPositionByStrategyAndSymbol(
-      event.strategyName,
-      event.symbol
-    );
+    const position = this.findPositionByStrategyAndSymbol(event.strategyName, event.symbol);
 
     if (!position) {
       // Position closed somehow - reset state
@@ -732,12 +652,7 @@ export class ExecutionEngine {
     // Update position price
     const lastCandle = candles[candles.length - 1];
     if (lastCandle) {
-      await this.onMarketPriceUpdate(
-        event.symbol,
-        lastCandle.close,
-        candles,
-        indicators
-      );
+      await this.onMarketPriceUpdate(event.symbol, lastCandle.close, candles, indicators);
     }
 
     // Check exit conditions (use exit1 or exit2 based on which entry is active)
@@ -746,8 +661,7 @@ export class ExecutionEngine {
     const exit2Signal = strategy.exitSecond(candles, event.patternState, state);
 
     if (exit1Signal.exit || exit2Signal.exit) {
-      const exitPrice =
-        exit1Signal.price || exit2Signal.price || position.lastPrice;
+      const exitPrice = exit1Signal.price || exit2Signal.price || position.lastPrice;
       await this.closePosition(position, exitPrice, "strategy-exit");
       this.orchestrator.updateState(event.strategyName, event.symbol, {
         phase: "exit",
@@ -763,10 +677,7 @@ export class ExecutionEngine {
     strategy: IPatternStrategy,
     state: StrategyState
   ): Promise<void> {
-    const position = this.findPositionByStrategyAndSymbol(
-      event.strategyName,
-      event.symbol
-    );
+    const position = this.findPositionByStrategyAndSymbol(event.strategyName, event.symbol);
 
     if (position) {
       // Close any remaining position
@@ -936,8 +847,7 @@ export class ExecutionEngine {
       // סוגרים את כל הפוזיציות הפתוחות
       for (const pos of [...this.openPositions]) {
         // Use current price from map, fallback to lastPrice, then entryPrice
-        const exitPrice =
-          currentPriceMap?.[pos.symbol] ?? pos.lastPrice ?? pos.entryPrice;
+        const exitPrice = currentPriceMap?.[pos.symbol] ?? pos.lastPrice ?? pos.entryPrice;
 
         // Validate exit price
         if (!isFinite(exitPrice) || exitPrice <= 0) {
@@ -982,17 +892,13 @@ export class ExecutionEngine {
     const distance = Math.abs(entryPrice - stopLoss);
     const riskPerShare = distance;
 
-    const riskBudgetTotal =
-      this.config.totalAccountValue * (this.config.riskPerTradePct / 100);
+    const riskBudgetTotal = this.config.totalAccountValue * (this.config.riskPerTradePct / 100);
 
-    let quantity =
-      riskPerShare > 0 ? Math.floor(riskBudgetTotal / riskPerShare) : 0;
+    let quantity = riskPerShare > 0 ? Math.floor(riskBudgetTotal / riskPerShare) : 0;
 
     // הגבלה לפי חשיפה ממוצעת לכל טרייד (אם רוצים להימנע מטרייד ענק אחד)
-    const maxNotionalTotal =
-      this.config.totalAccountValue * (this.config.maxExposurePct / 100);
-    const maxNotionalPerTrade =
-      maxNotionalTotal / this.config.maxConcurrentTrades;
+    const maxNotionalTotal = this.config.totalAccountValue * (this.config.maxExposurePct / 100);
+    const maxNotionalPerTrade = maxNotionalTotal / this.config.maxConcurrentTrades;
 
     const notional = quantity * entryPrice;
     if (notional > maxNotionalPerTrade && entryPrice > 0) {
@@ -1018,8 +924,7 @@ export class ExecutionEngine {
   }
 
   private canOpenNotional(setup: TradeSetup): boolean {
-    const maxNotionalTotal =
-      this.config.totalAccountValue * (this.config.maxExposurePct / 100);
+    const maxNotionalTotal = this.config.totalAccountValue * (this.config.maxExposurePct / 100);
 
     const currentNotional = this.openPositions.reduce((sum, pos) => {
       return sum + pos.quantity * pos.entryPrice;
@@ -1030,9 +935,7 @@ export class ExecutionEngine {
     return currentNotional + newNotional <= maxNotionalTotal;
   }
 
-  private async executeOrder(
-    setup: TradeSetup
-  ): Promise<OrderExecutionResult | null> {
+  private async executeOrder(setup: TradeSetup): Promise<OrderExecutionResult | null> {
     if (setup.quantity <= 0) return null;
 
     try {
@@ -1042,8 +945,7 @@ export class ExecutionEngine {
           return null;
         }
 
-        const side: "BUY" | "SELL" =
-          setup.direction === "LONG" ? "BUY" : "SELL";
+        const side: "BUY" | "SELL" = setup.direction === "LONG" ? "BUY" : "SELL";
 
         // Check IBKR connection status
         if (this.ibkrClient.isConnected && !this.ibkrClient.isConnected()) {
@@ -1057,7 +959,9 @@ export class ExecutionEngine {
               return null;
             }
           } else {
-            console.error("[ExecutionEngine] IBKR client not connected and no reconnect method available");
+            console.error(
+              "[ExecutionEngine] IBKR client not connected and no reconnect method available"
+            );
             return null;
           }
         }
@@ -1077,39 +981,36 @@ export class ExecutionEngine {
         this.pendingOrders.set(orderId, pendingOrder);
 
         try {
-        const res = await this.ibkrClient.placeMarketOrder(
-          setup.symbol,
-          setup.quantity,
-          side
-        );
+          const res = await this.ibkrClient.placeMarketOrder(setup.symbol, setup.quantity, side);
 
-        // Update order status
-        pendingOrder.status = res.filledQuantity === setup.quantity ? "FILLED" : "PARTIALLY_FILLED";
-        pendingOrder.filledQuantity = res.filledQuantity;
-        pendingOrder.avgFillPrice = res.avgFillPrice;
-        pendingOrder.updatedAt = new Date().toISOString();
-        if (res.orderId) {
-          pendingOrder.orderId = res.orderId;
+          // Update order status
+          pendingOrder.status =
+            res.filledQuantity === setup.quantity ? "FILLED" : "PARTIALLY_FILLED";
+          pendingOrder.filledQuantity = res.filledQuantity;
+          pendingOrder.avgFillPrice = res.avgFillPrice;
+          pendingOrder.updatedAt = new Date().toISOString();
+          if (res.orderId) {
+            pendingOrder.orderId = res.orderId;
+            this.pendingOrders.delete(orderId);
+            this.pendingOrders.set(res.orderId, pendingOrder);
+          }
+
+          // Move to history
+          this.orderHistory.push({ ...pendingOrder });
+          if (pendingOrder.status === "FILLED" || pendingOrder.status === "PARTIALLY_FILLED") {
+            this.pendingOrders.delete(pendingOrder.orderId);
+          }
+
+          return res;
+        } catch (error) {
+          // Update order status to rejected
+          pendingOrder.status = "REJECTED";
+          pendingOrder.error = error instanceof Error ? error.message : String(error);
+          pendingOrder.updatedAt = new Date().toISOString();
+          this.orderHistory.push({ ...pendingOrder });
           this.pendingOrders.delete(orderId);
-          this.pendingOrders.set(res.orderId, pendingOrder);
+          throw error; // Re-throw to be caught by outer try-catch
         }
-
-        // Move to history
-        this.orderHistory.push({ ...pendingOrder });
-        if (pendingOrder.status === "FILLED" || pendingOrder.status === "PARTIALLY_FILLED") {
-          this.pendingOrders.delete(pendingOrder.orderId);
-        }
-
-        return res;
-      } catch (error) {
-        // Update order status to rejected
-        pendingOrder.status = "REJECTED";
-        pendingOrder.error = error instanceof Error ? error.message : String(error);
-        pendingOrder.updatedAt = new Date().toISOString();
-        this.orderHistory.push({ ...pendingOrder });
-        this.pendingOrders.delete(orderId);
-        throw error; // Re-throw to be caught by outer try-catch
-      }
       }
 
       // DEMO / BACKTEST – נחשב כאילו קיבלנו Fill במחיר הכניסה
@@ -1130,10 +1031,7 @@ export class ExecutionEngine {
     }
   }
 
-  private createOpenPosition(
-    setup: TradeSetup,
-    fillPrice: number
-  ): OpenPosition {
+  private createOpenPosition(setup: TradeSetup, fillPrice: number): OpenPosition {
     const now = new Date().toISOString();
 
     return {
@@ -1172,17 +1070,14 @@ export class ExecutionEngine {
           ? (pos.lastPrice - pos.entryPrice) * pos.quantity
           : (pos.entryPrice - pos.lastPrice) * pos.quantity;
 
-      const currentR =
-        pos.riskDollars > 0 ? currentPnL / pos.riskDollars : 0;
+      const currentR = pos.riskDollars > 0 ? currentPnL / pos.riskDollars : 0;
 
       // Only consider positions that meet R threshold
       if (currentR < this.config.relocationThresholdR) continue;
 
       // Position must be profitable
       const profitable =
-        pos.direction === "LONG"
-          ? pos.lastPrice > pos.entryPrice
-          : pos.lastPrice < pos.entryPrice;
+        pos.direction === "LONG" ? pos.lastPrice > pos.entryPrice : pos.lastPrice < pos.entryPrice;
 
       if (!profitable) continue;
 
@@ -1197,11 +1092,7 @@ export class ExecutionEngine {
       return false;
     }
 
-    this.closePosition(
-      candidate,
-      candidate.lastPrice || candidate.entryPrice,
-      "relocation"
-    );
+    this.closePosition(candidate, candidate.lastPrice || candidate.entryPrice, "relocation");
 
     return true;
   }
@@ -1221,11 +1112,7 @@ export class ExecutionEngine {
     }
   }
 
-  private closePosition(
-    pos: OpenPosition,
-    exitPrice: number,
-    reason: ExitReason
-  ): void {
+  private closePosition(pos: OpenPosition, exitPrice: number, reason: ExitReason): void {
     // Validate exit price
     if (!isFinite(exitPrice) || exitPrice <= 0) {
       console.warn("[ExecutionEngine] Invalid exit price in closePosition", {
@@ -1243,8 +1130,7 @@ export class ExecutionEngine {
         ? (exitPrice - pos.entryPrice) * pos.quantity
         : (pos.entryPrice - exitPrice) * pos.quantity;
 
-    const rMultiple =
-      pos.riskPerShare > 0 ? pnl / (pos.riskPerShare * pos.quantity) : 0;
+    const rMultiple = pos.riskPerShare > 0 ? pnl / (pos.riskPerShare * pos.quantity) : 0;
 
     const closed: ClosedTrade = {
       symbol: pos.symbol,
@@ -1288,9 +1174,7 @@ export class ExecutionEngine {
     try {
       const now = new Date();
       // Convert to EST/EDT (America/New_York timezone)
-      const marketTime = new Date(
-        now.toLocaleString("en-US", { timeZone: "America/New_York" })
-      );
+      const marketTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
       const hh = String(marketTime.getHours()).padStart(2, "0");
       const mm = String(marketTime.getMinutes()).padStart(2, "0");
       return `${hh}:${mm}`;
@@ -1316,9 +1200,7 @@ export class ExecutionEngine {
     strategyName: string,
     symbol: string
   ): OpenPosition | undefined {
-    return this.openPositions.find(
-      (p) => p.symbol === symbol && p.strategyName === strategyName
-    );
+    return this.openPositions.find((p) => p.symbol === symbol && p.strategyName === strategyName);
   }
 
   /**
@@ -1333,17 +1215,13 @@ export class ExecutionEngine {
     const distance = Math.abs(entryPrice - stopLoss);
     const riskPerShare = distance;
 
-    const riskBudgetTotal =
-      this.config.totalAccountValue * (this.config.riskPerTradePct / 100);
+    const riskBudgetTotal = this.config.totalAccountValue * (this.config.riskPerTradePct / 100);
 
-    let quantity =
-      riskPerShare > 0 ? Math.floor(riskBudgetTotal / riskPerShare) : 0;
+    let quantity = riskPerShare > 0 ? Math.floor(riskBudgetTotal / riskPerShare) : 0;
 
     // Limit by exposure per trade
-    const maxNotionalTotal =
-      this.config.totalAccountValue * (this.config.maxExposurePct / 100);
-    const maxNotionalPerTrade =
-      maxNotionalTotal / this.config.maxConcurrentTrades;
+    const maxNotionalTotal = this.config.totalAccountValue * (this.config.maxExposurePct / 100);
+    const maxNotionalPerTrade = maxNotionalTotal / this.config.maxConcurrentTrades;
 
     const notional = quantity * entryPrice;
     if (notional > maxNotionalPerTrade && entryPrice > 0) {
@@ -1402,9 +1280,7 @@ export class ExecutionEngine {
     const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
     const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
     const averageR =
-      trades.length > 0
-        ? trades.reduce((sum, t) => sum + t.rMultiple, 0) / trades.length
-        : 0;
+      trades.length > 0 ? trades.reduce((sum, t) => sum + t.rMultiple, 0) / trades.length : 0;
     const largestWin = Math.max(...trades.map((t) => t.pnl), 0);
     const largestLoss = Math.min(...trades.map((t) => t.pnl), 0);
 

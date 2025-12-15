@@ -1,7 +1,7 @@
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import { existsSync } from "fs";
-import { join } from "path";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -12,11 +12,14 @@ export async function GET(request: Request) {
 
   try {
     if (!existsSync(logFile)) {
-      return NextResponse.json({
-        error: "Log file not found",
-        message: "Please run 'bun run dev:log' to enable log file capture",
-        logFile,
-      }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: "Log file not found",
+          message: "Please run 'bun run dev:log' to enable log file capture",
+          logFile,
+        },
+        { status: 404 }
+      );
     }
 
     // Read the entire file and get last N lines
@@ -26,12 +29,13 @@ export async function GET(request: Request) {
 
     // Apply filter if provided
     if (filter) {
-      lastLines = lastLines.filter(line => 
-        line.includes(filter) || 
-        line.includes("[API]") || 
-        line.includes("[TWS Client]") ||
-        line.includes("IB Gateway") ||
-        line.includes("IBKR")
+      lastLines = lastLines.filter(
+        (line) =>
+          line.includes(filter) ||
+          line.includes("[API]") ||
+          line.includes("[TWS Client]") ||
+          line.includes("IB Gateway") ||
+          line.includes("IBKR")
       );
     }
 
@@ -45,10 +49,12 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({
-      error: "Failed to read log file",
-      details: errorMsg,
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to read log file",
+        details: errorMsg,
+      },
+      { status: 500 }
+    );
   }
 }
-

@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Health Endpoint (v2)
- * 
+ *
  * Returns health status including connection and key symbol data freshness
  */
 
@@ -25,9 +25,7 @@ export async function GET() {
     } = {
       connected: status.state === "CONNECTED",
       state: status.state,
-      connectionAge: status.lastConnectTime
-        ? Date.now() - status.lastConnectTime
-        : null,
+      connectionAge: status.lastConnectTime ? Date.now() - status.lastConnectTime : null,
       keySymbols: [],
     };
 
@@ -61,4 +59,3 @@ export async function GET() {
     );
   }
 }
-

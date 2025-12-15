@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Type Definitions
- * 
+ *
  * Shared types and interfaces for all IBKR services
  */
 
@@ -75,10 +75,9 @@ export type MarketDataRegistry = Map<string, MarketDataSubscription>;
 export interface MarketDataOptions {
   /** Generic tick list, comma-separated (e.g., "233,236,258") */
   genericTickList?: string;
-  /** Snapshot subscription (one-time, not streaming) */
-  snapshot?: boolean;
   /** Market data type: 1=live, 2=frozen, 3=delayed, 4=delayed-frozen */
   regulatorySnapshot?: boolean;
+  // NOTE: snapshot option removed - ONLY streaming mode is supported
 }
 
 // ============================================================================
@@ -151,14 +150,14 @@ export interface Position {
 export type OrderSide = "BUY" | "SELL";
 export type OrderType = "MKT" | "LMT" | "STP" | "STP_LMT" | "TRAIL" | "TRAIL_LIMIT";
 export type TimeInForce = "DAY" | "GTC" | "IOC" | "FOK";
-export type OrderStatus = 
-  | "PendingSubmit" 
-  | "PendingCancel" 
-  | "PreSubmitted" 
-  | "Submitted" 
+export type OrderStatus =
+  | "PendingSubmit"
+  | "PendingCancel"
+  | "PreSubmitted"
+  | "Submitted"
   | "ApiCancelled"
-  | "Cancelled" 
-  | "Filled" 
+  | "Cancelled"
+  | "Filled"
   | "Inactive"
   | "PartiallyFilled"
   | "Rejected";
@@ -267,15 +266,8 @@ export class IbkrSubscriptionError extends IbkrError {
 
 export type UnsubscribeFn = () => void;
 
-export interface MarketTickCallback {
-  (symbol: string, tick: MarketTick): void;
-}
+export type MarketTickCallback = (symbol: string, tick: MarketTick) => void;
 
-export interface OrderUpdateCallback {
-  (order: Order): void;
-}
+export type OrderUpdateCallback = (order: Order) => void;
 
-export interface ConnectionStateCallback {
-  (status: ConnectionStatus): void;
-}
-
+export type ConnectionStateCallback = (status: ConnectionStatus) => void;

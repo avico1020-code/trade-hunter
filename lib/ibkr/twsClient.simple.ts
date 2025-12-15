@@ -1,8 +1,5 @@
 // Simplified TWS Client for Interactive Brokers
-import type {
-  IbkrMarketDataSnapshot,
-  IbkrHistoricalBar,
-} from "@/lib/types/ibkr";
+import type { IbkrHistoricalBar, IbkrMarketDataSnapshot } from "@/lib/types/ibkr";
 
 interface TwsConfig {
   host?: string;
@@ -27,17 +24,18 @@ export class TwsClient {
     // Generate unique clientId if not provided
     // IB Gateway requires client IDs between 0 and 32767 (16-bit signed integer)
     // Use modulo to ensure it's in valid range
-    const defaultClientId = config.clientId !== undefined 
-      ? config.clientId 
-      : Math.floor(Date.now() % 32767) + Math.floor(Math.random() * 100);
-    
+    const defaultClientId =
+      config.clientId !== undefined
+        ? config.clientId
+        : Math.floor(Date.now() % 32767) + Math.floor(Math.random() * 100);
+
     // Ensure clientId is in valid range (0-32767)
     const validClientId = Math.max(0, Math.min(32767, defaultClientId));
-    
+
     // Use port 4001 for Paper Trading, 4002 for Live Trading (IB Gateway)
     // Fallback to 7497 (Paper) / 7496 (Live) if specified for TWS
     const defaultPort = config.port || 4002; // Default to Live Trading port
-    
+
     this.config = {
       host: config.host || "127.0.0.1",
       port: defaultPort,
@@ -50,11 +48,13 @@ export class TwsClient {
       const ib = require("@stoqey/ib");
       // @stoqey/ib exports IBApi, not IB!
       const IBApiClass = ib.IBApi || ib.default?.IBApi || ib.default;
-      
+
       if (!IBApiClass) {
-        throw new Error('IBApi class not found in @stoqey/ib. Package may not be installed correctly.');
+        throw new Error(
+          "IBApi class not found in @stoqey/ib. Package may not be installed correctly."
+        );
       }
-      
+
       this.ibLib = {
         IB: IBApiClass, // Store as IB for backwards compatibility in code
         EventName: ib.EventName,
@@ -63,7 +63,7 @@ export class TwsClient {
         BarSizeSetting: ib.BarSizeSetting,
         WhatToShow: ib.WhatToShow,
       };
-      
+
       console.log(`[TWS Client] ✅ Loaded @stoqey/ib library`);
       console.log(`[TWS Client]    IBApi class: ${IBApiClass.name}`);
       console.log(`[TWS Client]    EventName: ${!!this.ibLib.EventName}`);
@@ -94,7 +94,7 @@ export class TwsClient {
         this.ib.removeAllListeners();
         this.ib.disconnect();
         // Wait a bit for IB Gateway to release the Client ID
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (e) {
         // Ignore errors if already disconnected
         console.warn(`⚠️ [TWS Client] Error during cleanup:`, e);
@@ -110,14 +110,16 @@ export class TwsClient {
       if (!this.ib) {
         console.log(`🔌 [TWS Client] Creating new IB instance:`);
         console.log(`   📍 Host: ${this.config.host}`);
-        console.log(`   🔌 Port: ${this.config.port} ${this.config.port === 4001 ? '(Paper Trading)' : this.config.port === 4002 ? '(Live Trading)' : ''}`);
+        console.log(
+          `   🔌 Port: ${this.config.port} ${this.config.port === 4001 ? "(Paper Trading)" : this.config.port === 4002 ? "(Live Trading)" : ""}`
+        );
         console.log(`   🆔 Client ID: ${this.config.clientId}`);
         this.ib = new lib.IB({
           clientId: this.config.clientId,
           host: this.config.host,
           port: this.config.port,
         });
-        
+
         // Set up persistent event handlers (only once when creating new instance)
         this.setupPersistentHandlers(lib);
       } else {
@@ -132,7 +134,11 @@ export class TwsClient {
           console.error(`❌ [TWS Client] Connection timeout after 25 seconds`);
           console.error(`   📍 Tried: ${this.config.host}:${this.config.port}`);
           console.error(`   💡 Make sure IB Gateway is running and API is enabled`);
-          reject(new Error(`Connection timeout after 25 seconds - Is IB Gateway running on port ${this.config.port}? Make sure API is enabled.`));
+          reject(
+            new Error(
+              `Connection timeout after 25 seconds - Is IB Gateway running on port ${this.config.port}? Make sure API is enabled.`
+            )
+          );
         }
       }, 25000); // 25 seconds timeout
 
@@ -143,16 +149,16 @@ export class TwsClient {
         this.nextValidOrderId = orderId;
         console.log(`✅ [TWS Client] Received nextValidId! Order ID: ${orderId}`);
         console.log(`✅ [TWS Client] Connection fully established!`);
-        
+
         if (this.connecting && this.connectPromise) {
           this.connected = true;
           this.connecting = false;
           this.connectPromise = null;
           this.lastActivityTime = Date.now();
-          
+
           // Start keep-alive mechanism to prevent inactivity disconnects
           this.startKeepAlive();
-          
+
           // Request account updates to detect account type
           setTimeout(() => {
             try {
@@ -165,7 +171,7 @@ export class TwsClient {
               console.warn(`⚠️ [TWS Client] Failed to request account updates:`, e);
             }
           }, 500); // Small delay to ensure connection is stable
-          
+
           resolve();
         }
       };
@@ -177,25 +183,29 @@ export class TwsClient {
           this.connecting = false;
           const savedConnectPromise = this.connectPromise;
           this.connectPromise = null;
-          
+
           // Detailed error messages
           let errorMessage = err.message;
           if (code === 502) {
-            errorMessage = `Connection refused to ${this.config.host}:${this.config.port}. ` +
+            errorMessage =
+              `Connection refused to ${this.config.host}:${this.config.port}. ` +
               `Please ensure IB Gateway is running and API is enabled. ` +
               `Check Settings → API → Settings → Enable ActiveX and Socket Clients.`;
           } else if (code === 504) {
-            errorMessage = `Connection timeout to ${this.config.host}:${this.config.port}. ` +
+            errorMessage =
+              `Connection timeout to ${this.config.host}:${this.config.port}. ` +
               `IB Gateway is not responding. Make sure it's fully connected (not just started).`;
           } else if (err.message.includes("client id is already in use")) {
             // If Client ID is in use, try with a different Client ID (increment)
             const oldClientId = this.config.clientId || 1;
             const newClientId = oldClientId + 1;
-            console.warn(`⚠️ [TWS Client] Client ID ${oldClientId} is already in use. Trying Client ID ${newClientId}...`);
-            
+            console.warn(
+              `⚠️ [TWS Client] Client ID ${oldClientId} is already in use. Trying Client ID ${newClientId}...`
+            );
+
             // Update config and retry with new Client ID
             this.config.clientId = newClientId;
-            
+
             // Clean up and retry
             try {
               if (this.ib) {
@@ -204,7 +214,7 @@ export class TwsClient {
               }
               this.ib = null;
               this.connected = false;
-              
+
               // Wait a bit for IB Gateway to release the Client ID, then retry
               setTimeout(async () => {
                 try {
@@ -215,17 +225,21 @@ export class TwsClient {
                 } catch (retryError) {
                   // If retry also fails, we can't reject savedConnectPromise here
                   // The error will be logged and connection will fail naturally
-                  console.error(`❌ [TWS Client] Retry with Client ID ${newClientId} also failed:`, retryError);
+                  console.error(
+                    `❌ [TWS Client] Retry with Client ID ${newClientId} also failed:`,
+                    retryError
+                  );
                 }
               }, 1500); // Wait 1.5 seconds before retry to ensure IB Gateway released the Client ID
               return; // Don't reject here - we're retrying
             } catch (retryErr) {
-              errorMessage = `Client ID ${oldClientId} is already in use and retry setup failed. ` +
+              errorMessage =
+                `Client ID ${oldClientId} is already in use and retry setup failed. ` +
                 `Close other applications using IB Gateway or restart IB Gateway.`;
               reject(new Error(errorMessage));
             }
           }
-          
+
           // Reject on critical connection errors (but not client ID in use - we retry above)
           if (code === 502 || code === 504) {
             console.error(`❌ [TWS Client] Connection failed: ${errorMessage}`);
@@ -250,7 +264,7 @@ export class TwsClient {
         this.connectPromise = null;
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error(`❌ [TWS Client] Failed to call ib.connect():`, errorMsg);
-        console.error(`   Stack:`, error instanceof Error ? error.stack : 'N/A');
+        console.error(`   Stack:`, error instanceof Error ? error.stack : "N/A");
         reject(new Error(`Failed to start connection: ${errorMsg}`));
       }
     });
@@ -274,47 +288,50 @@ export class TwsClient {
     });
 
     // Handle account value updates (for account type detection)
-    this.ib.on(lib.EventName.accountValue, (key: string, val: string, currency: string, accountName: string) => {
-      // Detect account type based on account name (DU prefix = Paper Trading)
-      if (accountName && accountName.startsWith("DU")) {
-        this.accountType = "PAPER";
-        console.log(`\n======== ACCOUNT DETECTED ========`);
-        console.log(`Account Name: ${accountName}`);
-        console.log(`Account Type: ${this.accountType}`);
-        console.log(`==================================\n`);
-      } else if (accountName && !this.accountType) {
-        // If account name doesn't start with DU, assume LIVE
-        if (key === "AccountType" || key === "AccountCode") {
-          this.accountType = "LIVE";
+    this.ib.on(
+      lib.EventName.accountValue,
+      (key: string, val: string, currency: string, accountName: string) => {
+        // Detect account type based on account name (DU prefix = Paper Trading)
+        if (accountName && accountName.startsWith("DU")) {
+          this.accountType = "PAPER";
           console.log(`\n======== ACCOUNT DETECTED ========`);
           console.log(`Account Name: ${accountName}`);
           console.log(`Account Type: ${this.accountType}`);
           console.log(`==================================\n`);
+        } else if (accountName && !this.accountType) {
+          // If account name doesn't start with DU, assume LIVE
+          if (key === "AccountType" || key === "AccountCode") {
+            this.accountType = "LIVE";
+            console.log(`\n======== ACCOUNT DETECTED ========`);
+            console.log(`Account Name: ${accountName}`);
+            console.log(`Account Type: ${this.accountType}`);
+            console.log(`==================================\n`);
+          }
         }
       }
-    });
+    );
 
     // Handle disconnection
     this.ib.on(lib.EventName.disconnected, () => {
       console.log(`❌ [TWS Client] Disconnected from IB Gateway`);
       console.log(`   📍 Was connected to: ${this.config.host}:${this.config.port}`);
       console.log(`   🆔 Client ID: ${this.config.clientId}`);
-      
+
       // Stop keep-alive when disconnected
       this.stopKeepAlive();
-      
+
       // Clear reconnection timeout if exists
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = null;
       }
-      
+
       this.connected = false;
       this.connecting = false;
       if (this.connectPromise) {
         this.connectPromise = null;
       }
-      
+
       // Schedule automatic reconnection after a short delay
       // Only reconnect if this was an unexpected disconnection (not from disconnect() call)
       if (this.ib) {
@@ -335,10 +352,12 @@ export class TwsClient {
       console.error(`❌ [TWS Client] IB Gateway Error [${code}]:`, err.message);
       console.error(`   📍 Connection: ${this.config.host}:${this.config.port}`);
       console.error(`   🆔 Client ID: ${this.config.clientId}`);
-      
+
       // Common error codes and their meanings
       if (code === 502) {
-        console.error(`   💡 Error 502: Connection refused - IB Gateway not running or API not enabled`);
+        console.error(
+          `   💡 Error 502: Connection refused - IB Gateway not running or API not enabled`
+        );
       } else if (code === 504) {
         console.error(`   💡 Error 504: Connection timeout - IB Gateway not responding`);
       } else if (code === 1100) {
@@ -356,7 +375,7 @@ export class TwsClient {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
-    
+
     if (this.ib && (this.connected || this.connecting)) {
       try {
         console.log(`🔌 [TWS Client] Disconnecting clientId: ${this.config.clientId}`);
@@ -384,7 +403,7 @@ export class TwsClient {
       }
     }
   }
-  
+
   /**
    * Start keep-alive mechanism to prevent inactivity disconnects
    * Requests account updates every 20 seconds to keep connection alive
@@ -393,7 +412,7 @@ export class TwsClient {
   private startKeepAlive(): void {
     // Clear existing interval if any
     this.stopKeepAlive();
-    
+
     // Send keep-alive every 20 seconds (IB Gateway typically disconnects after 30s of inactivity)
     this.keepAliveInterval = setInterval(() => {
       if (this.ib && this.connected) {
@@ -404,9 +423,14 @@ export class TwsClient {
           this.ib.reqAccountUpdates(true, ""); // true = subscribe, "" = all accounts
           this.lastActivityTime = Date.now();
           // Don't log every keep-alive to reduce noise - only log occasionally
-          if (Math.random() < 0.1) { // Log ~10% of keep-alives
-            const secondsSinceLastActivity = Math.round((Date.now() - this.lastActivityTime) / 1000);
-            console.log(`💓 [TWS Client] Keep-alive sent (last activity: ${secondsSinceLastActivity}s ago)`);
+          if (Math.random() < 0.1) {
+            // Log ~10% of keep-alives
+            const secondsSinceLastActivity = Math.round(
+              (Date.now() - this.lastActivityTime) / 1000
+            );
+            console.log(
+              `💓 [TWS Client] Keep-alive sent (last activity: ${secondsSinceLastActivity}s ago)`
+            );
           }
         } catch (e) {
           console.warn(`⚠️ [TWS Client] Keep-alive failed:`, e);
@@ -420,10 +444,10 @@ export class TwsClient {
         this.stopKeepAlive();
       }
     }, 20000); // Every 20 seconds
-    
+
     console.log(`💓 [TWS Client] Keep-alive started (every 20 seconds)`);
   }
-  
+
   /**
    * Stop keep-alive mechanism
    */
@@ -466,10 +490,14 @@ export class TwsClient {
    * Get real-time market data via streaming (not snapshot)
    * Subscribes to streaming data, collects enough data, then cancels subscription
    * Returns data with Last Price, Close, and Volume
+   *
+   * DEPRECATED (Phase 6): This method is deprecated for direct use by consumers.
+   * Use MarketDataHub.getLastMarketTick() or MarketDataHub.getBars() instead.
+   * This method is only used internally by the streaming layer.
    */
   async getMarketDataSnapshot(symbol: string): Promise<IbkrMarketDataSnapshot> {
     await this.connect();
-    
+
     // Update last activity time when making requests
     this.lastActivityTime = Date.now();
 
@@ -485,7 +513,7 @@ export class TwsClient {
 
     return new Promise((resolve, reject) => {
       const data: IbkrMarketDataSnapshot = { conid: reqId };
-      let fieldsReceived = new Set<number>();
+      const fieldsReceived = new Set<number>();
       let tickPriceReceived = false;
       let tickSizeReceived = false;
       let hasEnoughData = false;
@@ -499,12 +527,14 @@ export class TwsClient {
         const hasLastPrice = data["31"] && parseFloat(data["31"]) > 0;
         const hasClose = data["7295"] && parseFloat(data["7295"]) > 0;
         const hasVolume = data["7308"] && parseFloat(data["7308"]) >= 0; // Volume can be 0
-        
+
         if (hasLastPrice && hasClose && hasVolume) {
           if (!hasEnoughData) {
             hasEnoughData = true;
-            console.log(`✅ [TWS] ${symbol}: Received complete data - Last: ${data["31"]}, Close: ${data["7295"]}, Volume: ${data["7308"]}`);
-            
+            console.log(
+              `✅ [TWS] ${symbol}: Received complete data - Last: ${data["31"]}, Close: ${data["7295"]}, Volume: ${data["7308"]}`
+            );
+
             // Cancel subscription since we have enough data
             if (this.ib) {
               try {
@@ -514,7 +544,7 @@ export class TwsClient {
                 console.warn(`⚠️ [TWS] ${symbol}: Error cancelling subscription:`, e);
               }
             }
-            
+
             if (snapshotTimeout) clearTimeout(snapshotTimeout);
             if (longTimeout) clearTimeout(longTimeout);
             if (cleanup) cleanup();
@@ -536,7 +566,7 @@ export class TwsClient {
         if (id === reqId) {
           fieldsReceived.add(field);
           tickPriceReceived = true;
-          
+
           // Only process valid prices
           if (!price || price <= 0 || !isFinite(price)) {
             return; // Ignore invalid prices
@@ -636,15 +666,17 @@ export class TwsClient {
       const errorHandlerForSnapshot = (err: Error, code: number, id: number) => {
         if (id === reqId) {
           errorReceived = true;
-          
+
           // Error 10089: Market data subscription required, but delayed data is available
           if (code === 10089 || err.message?.includes("additional subscription")) {
-            console.log(`⚠️ [TWS] ${symbol}: Real-time data requires subscription, delayed data available (code: 10089)`);
+            console.log(
+              `⚠️ [TWS] ${symbol}: Real-time data requires subscription, delayed data available (code: 10089)`
+            );
             delayedDataAvailable = true;
             // Don't reject - wait for delayed data to arrive
             return;
           }
-          
+
           // Error 200: No security definition found (symbol doesn't exist)
           if (code === 200 || err.message?.includes("No security definition")) {
             console.error(`❌ [TWS] ${symbol}: Security not found (code: 200)`);
@@ -680,19 +712,21 @@ export class TwsClient {
       // Increased timeout for delayed data (can take 10-15 seconds)
       snapshotTimeout = setTimeout(() => {
         if (securityNotFound) return; // Already handled
-        
+
         if (delayedDataAvailable || tickPriceReceived || tickSizeReceived) {
           // If we have delayed data available or some data received, wait a bit longer
-          console.log(`⏳ [TWS] ${symbol}: Waiting for delayed data (has: ${tickPriceReceived || tickSizeReceived ? 'yes' : 'no'})...`);
+          console.log(
+            `⏳ [TWS] ${symbol}: Waiting for delayed data (has: ${tickPriceReceived || tickSizeReceived ? "yes" : "no"})...`
+          );
           return; // Don't resolve yet, wait for longTimeout
         }
-        
+
         if (!errorReceived) {
           // No error received yet, might still be connecting
           console.log(`⏳ [TWS] ${symbol}: No data yet, waiting longer...`);
           return;
         }
-        
+
         // Only reject if we got an error and no data
         // Cancel subscription if still active
         if (this.ib) {
@@ -710,7 +744,7 @@ export class TwsClient {
       // Long timeout as absolute fallback (20 seconds for delayed data)
       longTimeout = setTimeout(() => {
         if (securityNotFound) return; // Already handled
-        
+
         // Cancel subscription if still active
         if (this.ib) {
           try {
@@ -720,18 +754,22 @@ export class TwsClient {
             // Ignore errors
           }
         }
-        
+
         if (cleanup) cleanup();
         if (snapshotTimeout) clearTimeout(snapshotTimeout);
-        
+
         // If we have some data (even if incomplete), return it
         if (tickPriceReceived || tickSizeReceived || delayedDataAvailable) {
           const hasLastPrice = data["31"] && parseFloat(data["31"]) > 0;
           const hasClose = data["7295"] && parseFloat(data["7295"]) > 0;
           const hasVolume = data["7308"] !== undefined;
-          
-          console.log(`⚠️ [TWS] ${symbol}: Returning ${hasLastPrice && hasClose && hasVolume ? 'complete' : 'partial'}/delayed data after timeout`);
-          console.log(`📊 [TWS] ${symbol}: Data received - Last: ${data["31"] || "N/A"}, Close: ${data["7295"] || "N/A"}, Volume: ${data["7308"] || "N/A"}`);
+
+          console.log(
+            `⚠️ [TWS] ${symbol}: Returning ${hasLastPrice && hasClose && hasVolume ? "complete" : "partial"}/delayed data after timeout`
+          );
+          console.log(
+            `📊 [TWS] ${symbol}: Data received - Last: ${data["31"] || "N/A"}, Close: ${data["7295"] || "N/A"}, Volume: ${data["7308"] || "N/A"}`
+          );
           resolve(data);
         } else {
           reject(new Error(`Streaming timeout for ${symbol} - no data received after 20 seconds`));
@@ -855,7 +893,7 @@ export class TwsClient {
     await this.connect();
 
     const lib = this.ensureIBLib();
-    
+
     const contract = {
       symbol: symbol.toUpperCase(),
       secType: lib.SecType.STK,
@@ -886,7 +924,7 @@ export class TwsClient {
 
     // Request market data (streaming mode)
     this.ib.reqMktData(reqId, contract, "", false, false);
-    
+
     console.log(`📡 [TWS Client] Started streaming for ${symbol} (reqId: ${reqId})`);
   }
 
@@ -913,7 +951,7 @@ export function getTwsClient(config?: TwsConfig): TwsClient {
     port: config?.port || DEFAULT_PORT,
     clientId: DEFAULT_CLIENT_ID, // Always use same Client ID to prevent conflicts
   };
-  
+
   if (!clientInstance) {
     // First time - create new instance
     clientInstance = new TwsClient(normalizedConfig);
@@ -924,10 +962,10 @@ export function getTwsClient(config?: TwsConfig): TwsClient {
     // Instance exists - check if we should reuse it
     // Only replace if we have different config (different port/host)
     const existingConfig = clientInstance.getConfig();
-    const shouldReplace = 
-      (normalizedConfig.port !== existingConfig.port) ||
-      (normalizedConfig.host !== existingConfig.host);
-    
+    const shouldReplace =
+      normalizedConfig.port !== existingConfig.port ||
+      normalizedConfig.host !== existingConfig.host;
+
     if (shouldReplace) {
       console.log(`🔄 [TWS Client Singleton] Replacing instance due to config change`);
       console.log(`   Old: ${existingConfig.host}:${existingConfig.port}`);
@@ -942,11 +980,14 @@ export function getTwsClient(config?: TwsConfig): TwsClient {
       console.log(`   🆔 Client ID: ${clientInstance.getClientId()}`);
     } else {
       // Reuse existing instance
-      console.log(`♻️  [TWS Client Singleton] Reusing existing instance (${existingConfig.host}:${existingConfig.port})`);
-      console.log(`   🆔 Client ID: ${clientInstance.getClientId()}, Connected: ${clientInstance.isConnected()}`);
+      console.log(
+        `♻️  [TWS Client Singleton] Reusing existing instance (${existingConfig.host}:${existingConfig.port})`
+      );
+      console.log(
+        `   🆔 Client ID: ${clientInstance.getClientId()}, Connected: ${clientInstance.isConnected()}`
+      );
     }
   }
-  
+
   return clientInstance;
 }
-

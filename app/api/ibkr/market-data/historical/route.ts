@@ -1,3 +1,13 @@
+/**
+ * IBKR Historical Data API Route
+ *
+ * NOTE: This route is for LONG-TERM historical data (days, weeks, months, years).
+ * This is NOT real-time intraday data and does NOT use MarketDataHub.
+ *
+ * For real-time intraday bars, use /api/market-data/bars (which uses MarketDataHub).
+ * For current quotes, use /api/market-data/tick (which uses MarketDataHub).
+ */
+
 import { NextResponse } from "next/server";
 import { getIbkrClient } from "@/lib/ibkr/client";
 
@@ -12,7 +22,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Symbol is required" }, { status: 400 });
     }
 
-    console.log(`📊 [API] Fetching historical data for ${symbol} (period: ${period}, bar: ${bar})...`);
+    console.log(
+      `📊 [API] Fetching historical data for ${symbol} (period: ${period}, bar: ${bar})...`
+    );
 
     const client = getIbkrClient();
 
@@ -30,19 +42,24 @@ export async function GET(request: Request) {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(`❌ [API] Failed to fetch historical data for ${symbol}:`, errorMsg);
-      
+
       // Check if it's an authentication/connection error
-      if (errorMsg.includes("not connected") || errorMsg.includes("authenticated") || errorMsg.includes("ECONNREFUSED")) {
+      if (
+        errorMsg.includes("not connected") ||
+        errorMsg.includes("authenticated") ||
+        errorMsg.includes("ECONNREFUSED")
+      ) {
         return NextResponse.json(
           {
             error: "Failed to connect to IB Gateway Client Portal",
             details: errorMsg,
-            suggestion: "Please ensure IB Gateway is running, fully connected, and you can access https://localhost:5000"
+            suggestion:
+              "Please ensure IB Gateway is running, fully connected, and you can access https://localhost:5000",
           },
           { status: 503 }
         );
       }
-      
+
       // Check if symbol not found
       if (errorMsg.includes("No results found")) {
         return NextResponse.json(
@@ -53,7 +70,7 @@ export async function GET(request: Request) {
           { status: 404 }
         );
       }
-      
+
       return NextResponse.json(
         {
           error: `Failed to fetch historical data for ${symbol}`,
@@ -65,11 +82,11 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error(`❌ [API] Unexpected error for ${request.url}:`, error);
     const errorMessage = error instanceof Error ? error.message : "Failed to fetch historical data";
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
-        suggestion: "Please check IB Gateway is running and accessible at https://localhost:5000"
+        suggestion: "Please check IB Gateway is running and accessible at https://localhost:5000",
       },
       { status: 500 }
     );

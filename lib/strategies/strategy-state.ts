@@ -1,21 +1,21 @@
 /**
  * StrategyState - Formal interface for strategy state management
- * 
+ *
  * This ensures:
  * - consistent trade management across all strategies
  * - predictable execution flow
  * - safer handling of multi-strategy engines
- * 
+ *
  * State is maintained PER STRATEGY PER SYMBOL.
  * Each strategy instance maintains its own state map: Map<symbol, StrategyState>
  */
 
-export type StrategyPhase = 
-  | "search"      // Pattern not yet detected, scanning...
-  | "entry1"      // Pattern found, waiting for first entry conditions
-  | "entry2"      // First entry executed or skipped, waiting for second entry
-  | "active"      // Position is open, managing trade
-  | "exit";       // Exit signal triggered, closing position
+export type StrategyPhase =
+  | "search" // Pattern not yet detected, scanning...
+  | "entry1" // Pattern found, waiting for first entry conditions
+  | "entry2" // First entry executed or skipped, waiting for second entry
+  | "active" // Position is open, managing trade
+  | "exit"; // Exit signal triggered, closing position
 
 export interface StrategyState {
   /**
@@ -47,7 +47,7 @@ export interface StrategyState {
   /**
    * Strategy-specific custom fields
    * Each strategy can store pattern-specific data here
-   * 
+   *
    * Examples:
    * - DoubleTop: { firstPeakIdx, secondPeakIdx, troughIdx, neckline }
    * - GapFill: { gapLevel, fillTarget }
@@ -75,10 +75,7 @@ export function createInitialStrategyState(): StrategyState {
 /**
  * Helper function to validate state transition
  */
-export function isValidPhaseTransition(
-  current: StrategyPhase,
-  next: StrategyPhase
-): boolean {
+export function isValidPhaseTransition(current: StrategyPhase, next: StrategyPhase): boolean {
   // Define valid transitions
   const validTransitions: Record<StrategyPhase, StrategyPhase[]> = {
     search: ["search", "entry1", "invalidated" as StrategyPhase],
@@ -90,4 +87,3 @@ export function isValidPhaseTransition(
 
   return validTransitions[current]?.includes(next) ?? false;
 }
-

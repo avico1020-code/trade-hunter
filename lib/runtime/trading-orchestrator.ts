@@ -7,37 +7,33 @@
 // ========= Imports =========
 
 import {
-  TradePatternScanner,
-  TradePatternScannerConfig,
-  RealTimeDataClient,
-  MasterScoringClient,
-  ScannerLogger,
-  PatternFoundEvent,
-  IndicatorSnapshot,
-  MasterSymbolInfo,
-} from "../scanner/trade-pattern-scanner";
-
-import {
-  DoubleTopStrategy,
-  DoubleTopPatternStrategy,
-  DoubleTopConfig,
-  Candle,
-} from "../strategies/double-top";
-
-import {
-  LiquiditySweepBreakoutStrategy,
-  LiquiditySweepBreakoutPatternStrategy,
-} from "../strategies/liquidity-sweep-breakout";
-
-import {
   ExecutionEngine,
-  ExecutionEngineConfig,
-  IBKRClient,
-  ExecutionMode,
-  OrderExecutionResult,
+  type ExecutionEngineConfig,
+  type ExecutionMode,
+  type IBKRClient,
+  type OrderExecutionResult,
 } from "../execution/execution-engine";
-
-import { IPatternStrategy } from "../scanner/trade-pattern-scanner";
+import {
+  type IndicatorSnapshot,
+  type IPatternStrategy,
+  type MasterScoringClient,
+  type MasterSymbolInfo,
+  type PatternFoundEvent,
+  type RealTimeDataClient,
+  type ScannerLogger,
+  TradePatternScanner,
+  type TradePatternScannerConfig,
+} from "../scanner/trade-pattern-scanner";
+import {
+  type Candle,
+  type DoubleTopConfig,
+  DoubleTopPatternStrategy,
+  DoubleTopStrategy,
+} from "../strategies/double-top";
+import {
+  LiquiditySweepBreakoutPatternStrategy,
+  LiquiditySweepBreakoutStrategy,
+} from "../strategies/liquidity-sweep-breakout";
 
 // ========= מימושי ברירת מחדל (דאמיים / שלד למימוש אמיתי) =========
 
@@ -59,16 +55,16 @@ class HttpMasterScoringClient implements MasterScoringClient {
       });
 
       if (!res.ok) {
-        console.error(
-          "[HttpMasterScoringClient] Failed to fetch top symbols",
-          { status: res.status, statusText: res.statusText }
-        );
+        console.error("[HttpMasterScoringClient] Failed to fetch top symbols", {
+          status: res.status,
+          statusText: res.statusText,
+        });
         return [];
       }
 
       const data = await res.json();
 
-      const rawSymbols: any[] = Array.isArray(data) ? data : data.symbols ?? [];
+      const rawSymbols: any[] = Array.isArray(data) ? data : (data.symbols ?? []);
 
       const symbols: MasterSymbolInfo[] = rawSymbols
         .map((item) => ({
@@ -88,38 +84,124 @@ class HttpMasterScoringClient implements MasterScoringClient {
 }
 
 // 2) RealTimeDataClient – חיבור לנתונים בזמן אמת (Candle + אינדיקטורים)
+// Phase 6: Uses MarketDataHub as the single source of truth
 
-// כאן אתה תתחבר בפועל ל־IB Gateway / TWS ותזרים נרות.
+import type { IntradayBar } from "@/lib/server/market-data";
+import { getMarketDataHub } from "@/lib/server/market-data";
 
 class IbkrRealTimeDataClient implements RealTimeDataClient {
+  private hub = getMarketDataHub();
+  private unsubscribeHandlers = new Map<string, () => void>();
+
   subscribeCandles(
     symbol: string,
     onUpdate: (candles: Candle[], indicators: IndicatorSnapshot) => void
-  ): void {
-    // TODO: לממש התחברות ל־IBKR ולזמן onUpdate בכל נר חדש / שינוי במחיר.
+  ): () => void {
+    const symbolKey = symbol.toUpperCase();
+    const key = `${symbolKey}`;
 
-    console.warn(
-      "[IbkrRealTimeDataClient] subscribeCandles() called for symbol=",
-      symbol,
-      " (TODO: implement real IBKR streaming)"
+    // Clean up any existing subscription
+    const existingUnsubscribe = this.unsubscribeHandlers.get(key);
+    if (existingUnsubscribe) {
+      existingUnsubscribe();
+    }
+
+    console.log(
+      `[IbkrRealTimeDataClient] Subscribing to candles for ${symbolKey} via MarketDataHub`
     );
 
-    // דוגמה לדמו (ללא חיבור אמיתי) – להשאיר או למחוק:
+    // Convert IntradayBar[] to Candle[] format
+    const convertBarsToCandles = (bars: IntradayBar[]): Candle[] => {
+      return bars.map((bar) => ({
+        time: new Date(bar.startTs).toISOString(),
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+        volume: bar.volume,
+      }));
+    };
 
-    // setInterval(() => {
-    //   const now = new Date().toISOString();
-    //   const price = 100 + Math.random();
-    //   const candles: Candle[] = [{
-    //     time: now,
-    //     open: price,
-    //     high: price + 0.2,
-    //     low: price - 0.2,
-    //     close: price,
-    //     volume: 1000
-    //   }];
-    //   const indicators: IndicatorSnapshot = {};
-    //   onUpdate(candles, indicators);
-    // }, 2000);
+    // Calculate indicators from candles using the centralized library
+    const calculateIndicators = (candles: Candle[]): IndicatorSnapshot => {
+      if (!candles || candles.length === 0) return {};
+
+      // Import indicators dynamically to avoid circular dependencies
+      const Indicators = require("@/lib/indicators").default;
+
+      try {
+        const result = Indicators.CalculateAllIndicators(candles);
+
+        if (!result) return {};
+
+        // Return flat indicator snapshot for easy access
+        return {
+          // Moving Averages
+          sma9: result.sma9,
+          sma20: result.sma20,
+          sma50: result.sma50,
+          sma200: result.sma200,
+          ema9: result.ema9,
+          ema20: result.ema20,
+          ema50: result.ema50,
+
+          // Momentum
+          rsi14: result.rsi14,
+          macd: result.macd?.macd,
+          macdSignal: result.macd?.signal,
+          macdHistogram: result.macd?.histogram,
+          stochasticK: result.stochastic?.k,
+          stochasticD: result.stochastic?.d,
+
+          // Volatility
+          atr14: result.atr14,
+          bbUpper: result.bb?.upper,
+          bbMiddle: result.bb?.middle,
+          bbLower: result.bb?.lower,
+
+          // Volume
+          vwap: result.vwap,
+          avgVolume20: result.avgVolume20,
+
+          // Utility
+          highest20: result.highest20,
+          lowest20: result.lowest20,
+        };
+      } catch (error) {
+        console.error(
+          `[IbkrRealTimeDataClient] Failed to calculate indicators for ${symbolKey}:`,
+          error
+        );
+        return {};
+      }
+    };
+
+    // Initial load: Get current bars (1m timeframe for strategy use)
+    const initialBars = this.hub.getBars(symbolKey, "1m");
+    if (initialBars.length > 0) {
+      const candles = convertBarsToCandles(initialBars);
+      const indicators = calculateIndicators(candles);
+      onUpdate(candles, indicators);
+    }
+
+    // Subscribe to bar-close events for this symbol (1m timeframe)
+    const unsubscribe = this.hub.onBarClose(symbolKey, "1m", (bar: IntradayBar) => {
+      // Get all bars up to now (including the newly closed bar)
+      const allBars = this.hub.getBars(symbolKey, "1m");
+      const candles = convertBarsToCandles(allBars);
+      const indicators = calculateIndicators(candles);
+      onUpdate(candles, indicators);
+    });
+
+    // Store unsubscribe handler
+    this.unsubscribeHandlers.set(key, unsubscribe);
+
+    // Return unsubscribe function
+    return () => {
+      unsubscribe();
+      this.unsubscribeHandlers.delete(key);
+      console.log(`[IbkrRealTimeDataClient] Unsubscribed from ${symbolKey}`);
+    };
   }
 }
 
@@ -249,17 +331,17 @@ function createDefaultScannerConfig(): TradePatternScannerConfig {
 
 function createDefaultExecutionConfig(): ExecutionEngineConfig {
   return {
-    totalAccountValue: 10000,   // למשל 10,000$
-    maxExposurePct: 95,         // 95% מהחשבון מותר למסחר
-    maxConcurrentTrades: 2,     // עד 2 עסקאות במקביל
-    riskPerTradePct: 1,         // 1% מהחשבון סיכון לטרייד אחד (Risk per Trade)
+    totalAccountValue: 10000, // למשל 10,000$
+    maxExposurePct: 95, // 95% מהחשבון מותר למסחר
+    maxConcurrentTrades: 2, // עד 2 עסקאות במקביל
+    riskPerTradePct: 1, // 1% מהחשבון סיכון לטרייד אחד (Risk per Trade)
 
     mode: "DEMO" satisfies ExecutionMode,
 
-    latestEntryTime: "16:25",   // אחרי זה לא פותחים עסקאות חדשות
-    forceExitTime: "16:28",     // אחרי זה סוגרים הכל
+    latestEntryTime: "16:25", // אחרי זה לא פותחים עסקאות חדשות
+    forceExitTime: "16:28", // אחרי זה סוגרים הכל
 
-    relocationThresholdR: 2,    // אם טרייד קיים נמצא מעל 2R אפשר להחליפו בטרייד חדש
+    relocationThresholdR: 2, // אם טרייד קיים נמצא מעל 2R אפשר להחליפו בטרייד חדש
 
     // Risk Limits (Optional - uncomment to enable)
     // dailyLossLimit: 500,        // מקסימום 500$ הפסד יומי
@@ -277,8 +359,7 @@ function createDefaultExecutionConfig(): ExecutionEngineConfig {
 
 export function createTradingSystem() {
   // 1) יצירת לקוחות (Clients)
-  const masterScoringEndpoint =
-    process.env.MASTER_SCORING_ENDPOINT ?? "http://localhost:8000";
+  const masterScoringEndpoint = process.env.MASTER_SCORING_ENDPOINT ?? "http://localhost:8000";
 
   const masterClient = new HttpMasterScoringClient(masterScoringEndpoint);
   const dataClient = new IbkrRealTimeDataClient();
@@ -318,12 +399,7 @@ export function createTradingSystem() {
   const executionConfig = createDefaultExecutionConfig();
 
   // 6) יצירת מנוע ביצוע (עם orchestrator)
-  const execEngine = new ExecutionEngine(
-    executionConfig,
-    ibkrClient,
-    strategyMap,
-    orchestrator
-  );
+  const execEngine = new ExecutionEngine(executionConfig, ibkrClient, strategyMap, orchestrator);
 
   // 7) יצירת סורק תבניות
   const scanner = new TradePatternScanner(
@@ -336,9 +412,7 @@ export function createTradingSystem() {
     (event: PatternFoundEvent, candles: Candle[], indicators?: IndicatorSnapshot) => {
       execEngine
         .onPatternEvent(event, candles, indicators)
-        .catch((err) =>
-          console.error("[ExecutionEngine] onPatternEvent error:", err)
-        );
+        .catch((err) => console.error("[ExecutionEngine] onPatternEvent error:", err));
     },
     logger
   );
@@ -406,4 +480,3 @@ export function createTradingSystem() {
 //
 // אם זה פרויקט Next.js / Node אחר – תייבא את createTradingSystem
 // ותפעיל אותו מתוך server-side / worker / process נפרד.
-

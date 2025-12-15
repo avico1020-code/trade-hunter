@@ -1,10 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { api } from "@/convex/_generated/api";
 
 /**
  * Temporary component to clear Finviz cache
@@ -43,4 +43,3 @@ export function ClearFinvizCacheButton() {
     </Button>
   );
 }
-

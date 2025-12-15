@@ -1,16 +1,16 @@
 /**
  * Strategy Orchestrator
- * 
+ *
  * Centralized state management for all strategies.
  * Maintains isolated state per strategy per symbol.
- * 
+ *
  * Responsibilities:
  * - Store and retrieve strategy state
  * - Ensure isolation between strategies
  * - Support multiple strategies on same symbol
  */
 
-import type { StrategyState, StrategyPhase } from "../strategies/strategy-state";
+import type { StrategyPhase, StrategyState } from "../strategies/strategy-state";
 
 /**
  * State storage structure:
@@ -270,4 +270,3 @@ export function getDefaultOrchestrator(): StrategyOrchestrator {
   }
   return defaultOrchestrator;
 }
-

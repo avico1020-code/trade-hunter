@@ -15,7 +15,7 @@ const AccordionItem = React.forwardRef<
   <AccordionPrimitive.Item
     ref={ref}
     className={cn("border-b", className)}
-    suppressHydrationWarning
+    suppressHydrationWarning={true}
     {...props}
   />
 ));
@@ -32,7 +32,7 @@ const AccordionTrigger = React.forwardRef<
         "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline rtl:flex-row-reverse [&[data-state=open]>svg]:rotate-180",
         className
       )}
-      suppressHydrationWarning
+      suppressHydrationWarning={true}
       {...props}
     >
       <span className="flex-1 text-right rtl:text-right">{children}</span>
@@ -49,10 +49,10 @@ const AccordionContent = React.forwardRef<
   <AccordionPrimitive.Content
     ref={ref}
     className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-    suppressHydrationWarning
+    suppressHydrationWarning={true}
     {...props}
   >
-    <div className={cn("pb-4 pt-0", className)} suppressHydrationWarning>
+    <div className={cn("pb-4 pt-0", className)} suppressHydrationWarning={true}>
       {children}
     </div>
   </AccordionPrimitive.Content>
@@ -61,4 +61,3 @@ const AccordionContent = React.forwardRef<
 AccordionContent.displayName = AccordionPrimitive.Content.displayName;
 
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
-

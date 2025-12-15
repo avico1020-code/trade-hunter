@@ -1,12 +1,17 @@
 "use client";
 
+import { Info } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AIChatPanel } from "@/components/main-screen/AIChatPanel";
 import { StrategyKitHeader } from "@/components/strategy-kit/StrategyKitHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -15,18 +20,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Info } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function ScanningAccordionContent() {
   const [mounted, setMounted] = useState(false);
-  
+
   // Scanner state
   const [minMasterScore, setMinMasterScore] = useState<string>("6.0");
   const [maxSymbolsToScan, setMaxSymbolsToScan] = useState<string>("20");
@@ -34,16 +34,18 @@ function ScanningAccordionContent() {
   const [debounceMs, setDebounceMs] = useState<string>("2000");
   const [enableDirectionFilter, setEnableDirectionFilter] = useState<boolean>(true);
   const [activeStrategies, setActiveStrategies] = useState<string[]>([]);
-  
+
   // Strategy Context - detailed configuration per strategy
-  const [strategyContext, setStrategyContext] = useState<Record<string, { enabled: boolean; direction: "LONG" | "SHORT" | "BOTH"; priority: string }>>({
+  const [strategyContext, setStrategyContext] = useState<
+    Record<string, { enabled: boolean; direction: "LONG" | "SHORT" | "BOTH"; priority: string }>
+  >({
     DOUBLE_TOP: { enabled: true, direction: "SHORT", priority: "1" },
     DOUBLE_BOTTOM: { enabled: true, direction: "LONG", priority: "1" },
     BREAKOUT: { enabled: true, direction: "LONG", priority: "2" },
     GAP_FILL: { enabled: true, direction: "BOTH", priority: "3" },
     REVERSAL: { enabled: true, direction: "BOTH", priority: "2" },
   });
-  
+
   // Backtest state
   const [backtestEnabled, setBacktestEnabled] = useState<boolean>(false);
   const [backtestIncludePremarket, setBacktestIncludePremarket] = useState<boolean>(false);
@@ -77,7 +79,12 @@ function ScanningAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מערכת הסריקה מזהה תבניות מסחר טכניות על מניות שדורגו גבוה במערכת הניקוד. המערכת מנתחת נתוני שוק בזמן אמת, מפעילה אסטרטגיות זיהוי תבניות שונות (כגון Double Top, Breakout, Gap Fill), ומסננת את התוצאות לפי כיוון, נרות סגורים, ואנטי-ספאם. המערכת משתמשת ב-RealTimeDataClient לקבלת נתוני שוק וב-MasterScoringClient לקבלת רשימת המניות המובילות. כל תבנית שזוהתה נשלחת כמסר למערכת הביצועים לכניסה לעסקה.
+                  <strong>תיאור המחלקה:</strong> מערכת הסריקה מזהה תבניות מסחר טכניות על מניות
+                  שדורגו גבוה במערכת הניקוד. המערכת מנתחת נתוני שוק בזמן אמת, מפעילה אסטרטגיות זיהוי
+                  תבניות שונות (כגון Double Top, Breakout, Gap Fill), ומסננת את התוצאות לפי כיוון,
+                  נרות סגורים, ואנטי-ספאם. המערכת משתמשת ב-RealTimeDataClient לקבלת נתוני שוק
+                  וב-MasterScoringClient לקבלת רשימת המניות המובילות. כל תבנית שזוהתה נשלחת כמסר
+                  למערכת הביצועים לכניסה לעסקה.
                 </p>
               </div>
 
@@ -98,7 +105,11 @@ function ScanningAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקה זו כוללת את כל האסטרטגיות לזיהוי תבניות מסחר. כל אסטרטגיה ממומשת לפי ממשק IPatternStrategy ומגדירה את כיוון המסחר שלה (LONG, SHORT, או BOTH). האסטרטגיות מזהות תבניות טכניות בנתוני המחיר והנפח ומחזירות PatternDetectionResult המכיל מידע על התבנית שזוהתה, מחיר כניסה מוצע, וסטופ-לוס מוצע.
+                  <strong>תיאור המחלקה:</strong> מחלקה זו כוללת את כל האסטרטגיות לזיהוי תבניות מסחר.
+                  כל אסטרטגיה ממומשת לפי ממשק IPatternStrategy ומגדירה את כיוון המסחר שלה (LONG,
+                  SHORT, או BOTH). האסטרטגיות מזהות תבניות טכניות בנתוני המחיר והנפח ומחזירות
+                  PatternDetectionResult המכיל מידע על התבנית שזוהתה, מחיר כניסה מוצע, וסטופ-לוס
+                  מוצע.
                 </p>
               </div>
 
@@ -110,14 +121,17 @@ function ScanningAccordionContent() {
                       הגדר לכל אסטרטגיה: האם מופעלת, כיוון מותר, וסדר עדיפות
                     </p>
                   </div>
-                  
+
                   {/* Strategy Context Configuration */}
                   {Object.keys(strategyContext).map((strategyName) => {
                     const strategy = strategyContext[strategyName];
                     return (
-                      <div key={strategyName} className="border border-border rounded-lg p-4 space-y-4">
+                      <div
+                        key={strategyName}
+                        className="border border-border rounded-lg p-4 space-y-4"
+                      >
                         <h4 className="text-lg font-semibold">{strategyName}</h4>
-                        
+
                         {/* Enabled Toggle */}
                         <div className="space-y-2">
                           <Label>מופעלת?</Label>
@@ -202,7 +216,7 @@ function ScanningAccordionContent() {
                           <div className="flex items-center gap-2 justify-end">
                             <Label htmlFor={`priority-${strategyName}`}>עדיפות (Priority)</Label>
                             <Dialog>
-                              <DialogTrigger asChild>
+                              <DialogTrigger asChild={true}>
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -216,10 +230,12 @@ function ScanningAccordionContent() {
                               <DialogContent className="max-w-2xl text-right">
                                 <DialogHeader>
                                   <DialogTitle>עדיפות (Priority)</DialogTitle>
-                                  <DialogDescription asChild>
+                                  <DialogDescription asChild={true}>
                                     <div className="space-y-4 mt-4 text-foreground">
                                       <p className="leading-relaxed">
-                                        <strong>Priority</strong> קובע את סדר העדיפות של האסטרטגיה. מספר נמוך יותר = עדיפות גבוהה יותר. כאשר מספר אסטרטגיות מזהה תבניות במקביל, האסטרטגיה עם עדיפות גבוהה יותר תרוץ קודם.
+                                        <strong>Priority</strong> קובע את סדר העדיפות של האסטרטגיה.
+                                        מספר נמוך יותר = עדיפות גבוהה יותר. כאשר מספר אסטרטגיות מזהה
+                                        תבניות במקביל, האסטרטגיה עם עדיפות גבוהה יותר תרוץ קודם.
                                       </p>
                                     </div>
                                   </DialogDescription>
@@ -236,7 +252,10 @@ function ScanningAccordionContent() {
                               onChange={(e) => {
                                 setStrategyContext((prev) => ({
                                   ...prev,
-                                  [strategyName]: { ...prev[strategyName], priority: e.target.value },
+                                  [strategyName]: {
+                                    ...prev[strategyName],
+                                    priority: e.target.value,
+                                  },
                                 }));
                               }}
                               placeholder="1"
@@ -262,7 +281,11 @@ function ScanningAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקה זו מגדירה את כל המסננים וההגבלות של מערכת הסריקה. זה כולל את הסף המינימלי של Master Score, מספר מקסימלי של מניות לסריקה, דרישה לנרות סגורים בלבד, זמן Debounce למניעת אותות כפולים, וסינון לפי כיוון המאסטר. כל אלו מבטיחים שהמערכת תזהה רק תבניות איכותיות ותמנע אותות מזויפים או כפולים.
+                  <strong>תיאור המחלקה:</strong> מחלקה זו מגדירה את כל המסננים וההגבלות של מערכת
+                  הסריקה. זה כולל את הסף המינימלי של Master Score, מספר מקסימלי של מניות לסריקה,
+                  דרישה לנרות סגורים בלבד, זמן Debounce למניעת אותות כפולים, וסינון לפי כיוון
+                  המאסטר. כל אלו מבטיחים שהמערכת תזהה רק תבניות איכותיות ותמנע אותות מזויפים או
+                  כפולים.
                 </p>
               </div>
 
@@ -272,7 +295,7 @@ function ScanningAccordionContent() {
                   <div className="flex items-center gap-2 justify-end">
                     <Label htmlFor="min-master-score">סף מינימלי של Master Score</Label>
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger asChild={true}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -286,16 +309,22 @@ function ScanningAccordionContent() {
                       <DialogContent className="max-w-2xl text-right">
                         <DialogHeader>
                           <DialogTitle>סף מינימלי של Master Score</DialogTitle>
-                          <DialogDescription asChild>
+                          <DialogDescription asChild={true}>
                             <div className="space-y-4 mt-4 text-foreground">
                               <p className="leading-relaxed">
-                                <strong>Min Master Score</strong> הוא הסף המינימלי שמניה חייבת להשיג במערכת הניקוד כדי להיות מועמדת לסריקה. מניות עם ציון נמוך מסף זה יידחו ולא יסרקו לתבניות.
+                                <strong>Min Master Score</strong> הוא הסף המינימלי שמניה חייבת להשיג
+                                במערכת הניקוד כדי להיות מועמדת לסריקה. מניות עם ציון נמוך מסף זה
+                                יידחו ולא יסרקו לתבניות.
                               </p>
                               <p className="leading-relaxed">
-                                <strong>איך זה עובד:</strong> המערכת מקבלת רשימת מניות מהמאסטר סקורינג. רק מניות עם masterScore ≥ minMasterScore ייכללו בסריקה. זה מסייע להפחית עומס ולסרוק רק הזדמנויות איכותיות.
+                                <strong>איך זה עובד:</strong> המערכת מקבלת רשימת מניות מהמאסטר
+                                סקורינג. רק מניות עם masterScore ≥ minMasterScore ייכללו בסריקה. זה
+                                מסייע להפחית עומס ולסרוק רק הזדמנויות איכותיות.
                               </p>
                               <p className="leading-relaxed">
-                                <strong>ערך מומלץ:</strong> 6.0 (ברירת מחדל). ערכים גבוהים יותר יגבילו את הסריקה למניות חזקות יותר, ערכים נמוכים יותר יכניסו גם מניות חלשות יותר.
+                                <strong>ערך מומלץ:</strong> 6.0 (ברירת מחדל). ערכים גבוהים יותר
+                                יגבילו את הסריקה למניות חזקות יותר, ערכים נמוכים יותר יכניסו גם
+                                מניות חלשות יותר.
                               </p>
                             </div>
                           </DialogDescription>
@@ -321,7 +350,7 @@ function ScanningAccordionContent() {
                   <div className="flex items-center gap-2 justify-end">
                     <Label htmlFor="max-symbols-scan">מספר מקסימלי של מניות לסריקה</Label>
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger asChild={true}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -335,16 +364,20 @@ function ScanningAccordionContent() {
                       <DialogContent className="max-w-2xl text-right">
                         <DialogHeader>
                           <DialogTitle>מספר מקסימלי של מניות לסריקה</DialogTitle>
-                          <DialogDescription asChild>
+                          <DialogDescription asChild={true}>
                             <div className="space-y-4 mt-4 text-foreground">
                               <p className="leading-relaxed">
-                                <strong>Max Symbols To Scan</strong> מגביל את מספר המניות שהמערכת תסרוק במקביל. זה מסייע לשלוט בעומס המערכת ולמנוע יותר מדי מנויים לנתונים בזמן אמת.
+                                <strong>Max Symbols To Scan</strong> מגביל את מספר המניות שהמערכת
+                                תסרוק במקביל. זה מסייע לשלוט בעומס המערכת ולמנוע יותר מדי מנויים
+                                לנתונים בזמן אמת.
                               </p>
                               <p className="leading-relaxed">
-                                <strong>איך זה עובד:</strong> גם אם יש יותר מניות שעברו את הסף המינימלי, המערכת תסרוק רק את ה-N הראשונות (המדורגות הגבוה ביותר).
+                                <strong>איך זה עובד:</strong> גם אם יש יותר מניות שעברו את הסף
+                                המינימלי, המערכת תסרוק רק את ה-N הראשונות (המדורגות הגבוה ביותר).
                               </p>
                               <p className="leading-relaxed">
-                                <strong>ערך מומלץ:</strong> 20 (ברירת מחדל). ניתן להתאים לפי כוח החישוב ורוחב הפס הזמינים.
+                                <strong>ערך מומלץ:</strong> 20 (ברירת מחדל). ניתן להתאים לפי כוח
+                                החישוב ורוחב הפס הזמינים.
                               </p>
                             </div>
                           </DialogDescription>
@@ -386,7 +419,8 @@ function ScanningAccordionContent() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground text-right">
-                    אם מופעל, המערכת תזהה תבניות רק על נרות שכבר נסגרו. זה מונע אותות מזויפים מנרות שעדיין פתוחים.
+                    אם מופעל, המערכת תזהה תבניות רק על נרות שכבר נסגרו. זה מונע אותות מזויפים מנרות
+                    שעדיין פתוחים.
                   </p>
                 </div>
 
@@ -395,7 +429,7 @@ function ScanningAccordionContent() {
                   <div className="flex items-center gap-2 justify-end">
                     <Label htmlFor="debounce-ms">זמן Debounce (מילישניות)</Label>
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger asChild={true}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -409,16 +443,20 @@ function ScanningAccordionContent() {
                       <DialogContent className="max-w-2xl text-right">
                         <DialogHeader>
                           <DialogTitle>זמן Debounce (מילישניות)</DialogTitle>
-                          <DialogDescription asChild>
+                          <DialogDescription asChild={true}>
                             <div className="space-y-4 mt-4 text-foreground">
                               <p className="leading-relaxed">
-                                <strong>Debounce</strong> הוא מנגנון אנטי-ספאם שמונע מהמערכת לשלוח מספר אותות באותו תבנית באותו זמן קצר.
+                                <strong>Debounce</strong> הוא מנגנון אנטי-ספאם שמונע מהמערכת לשלוח
+                                מספר אותות באותו תבנית באותו זמן קצר.
                               </p>
                               <p className="leading-relaxed">
-                                <strong>איך זה עובד:</strong> אם זוהתה תבנית, המערכת תחכה X מילישניות לפני שתאפשר אות נוסף מאותה תבנית על אותה מניה. זה מונע הצפת אותות.
+                                <strong>איך זה עובד:</strong> אם זוהתה תבנית, המערכת תחכה X
+                                מילישניות לפני שתאפשר אות נוסף מאותה תבנית על אותה מניה. זה מונע
+                                הצפת אותות.
                               </p>
                               <p className="leading-relaxed">
-                                <strong>ערך מומלץ:</strong> 2000ms (2 שניות). ערכים גבוהים יותר ימנעו יותר אותות כפולים, אך עלולים להחמיץ הזדמנויות מהירות.
+                                <strong>ערך מומלץ:</strong> 2000ms (2 שניות). ערכים גבוהים יותר
+                                ימנעו יותר אותות כפולים, אך עלולים להחמיץ הזדמנויות מהירות.
                               </p>
                             </div>
                           </DialogDescription>
@@ -460,7 +498,8 @@ function ScanningAccordionContent() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground text-right">
-                    אם מופעל, רק אסטרטגיות שמתאימות לכיוון שהמאסטר קבע יורצו. למשל, מניה עם direction=LONG תפעיל רק אסטרטגיות LONG או BOTH.
+                    אם מופעל, רק אסטרטגיות שמתאימות לכיוון שהמאסטר קבע יורצו. למשל, מניה עם
+                    direction=LONG תפעיל רק אסטרטגיות LONG או BOTH.
                   </p>
                 </div>
               </div>
@@ -477,7 +516,10 @@ function ScanningAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> הגדרות Backtest מאפשרות לבדוק את ביצועי מערכת הסריקה על נתונים היסטוריים. זה מאפשר לבדוק כמה תבניות היו מזוהות, באיזה תדירות, ואיך זה היה מתורגם לאותות מסחר. ניתן לבחור כלול שעות טרום-שוק ואחרי-שוק, להתעלם מסף Master Score, ולבחור תקופת זמן לבדיקה.
+                  <strong>תיאור המחלקה:</strong> הגדרות Backtest מאפשרות לבדוק את ביצועי מערכת
+                  הסריקה על נתונים היסטוריים. זה מאפשר לבדוק כמה תבניות היו מזוהות, באיזה תדירות,
+                  ואיך זה היה מתורגם לאותות מסחר. ניתן לבחור כלול שעות טרום-שוק ואחרי-שוק, להתעלם
+                  מסף Master Score, ולבחור תקופת זמן לבדיקה.
                 </p>
               </div>
 
@@ -556,7 +598,7 @@ function ScanningAccordionContent() {
                   <div className="flex items-center gap-2 justify-end">
                     <Label htmlFor="backtest-days">מספר ימים לבדיקה</Label>
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger asChild={true}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -570,13 +612,15 @@ function ScanningAccordionContent() {
                       <DialogContent className="max-w-2xl text-right">
                         <DialogHeader>
                           <DialogTitle>מספר ימים לבדיקה</DialogTitle>
-                          <DialogDescription asChild>
+                          <DialogDescription asChild={true}>
                             <div className="space-y-4 mt-4 text-foreground">
                               <p className="leading-relaxed">
-                                <strong>Days</strong> מגדיר כמה ימי מסחר היסטוריים לכלול בבדיקת Backtest. המערכת תסרוק את כל הנרות מתקופה זו ותזהה תבניות.
+                                <strong>Days</strong> מגדיר כמה ימי מסחר היסטוריים לכלול בבדיקת
+                                Backtest. המערכת תסרוק את כל הנרות מתקופה זו ותזהה תבניות.
                               </p>
                               <p className="leading-relaxed">
-                                <strong>ערך מומלץ:</strong> 30 ימים. ערכים גבוהים יותר יספקו יותר נתונים אך ייקחו יותר זמן לעיבוד.
+                                <strong>ערך מומלץ:</strong> 30 ימים. ערכים גבוהים יותר יספקו יותר
+                                נתונים אך ייקחו יותר זמן לעיבוד.
                               </p>
                             </div>
                           </DialogDescription>
@@ -618,7 +662,8 @@ function ScanningAccordionContent() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground text-right">
-                    אם מופעל, Backtest יסרוק את כל המניות ללא קשר לציון Master Score. זה שימושי לבדיקה אם יש תבניות על מניות שלא עברו את הסף.
+                    אם מופעל, Backtest יסרוק את כל המניות ללא קשר לציון Master Score. זה שימושי
+                    לבדיקה אם יש תבניות על מניות שלא עברו את הסף.
                   </p>
                 </div>
               </div>
@@ -632,7 +677,7 @@ function ScanningAccordionContent() {
 
 function ExecutionAccordionContent() {
   const [mounted, setMounted] = useState(false);
-  
+
   // Execution Engine state
   const [totalAccountValue, setTotalAccountValue] = useState<string>("10000");
   const [maxExposurePct, setMaxExposurePct] = useState<string>("95");
@@ -642,22 +687,22 @@ function ExecutionAccordionContent() {
   const [latestEntryTime, setLatestEntryTime] = useState<string>("15:30");
   const [forceExitTime, setForceExitTime] = useState<string>("15:45");
   const [relocationThresholdR, setRelocationThresholdR] = useState<string>("2.0");
-  
+
   // Risk Management state
   const [dailyLossLimit, setDailyLossLimit] = useState<string>("");
   const [maxDrawdownPct, setMaxDrawdownPct] = useState<string>("");
   const [maxPositionSizePerSymbol, setMaxPositionSizePerSymbol] = useState<string>("");
-  
+
   // Position Management state
   const [takeProfitEnabled, setTakeProfitEnabled] = useState<boolean>(false);
   const [targetMovePct, setTargetMovePct] = useState<string>("");
   const [targetR, setTargetR] = useState<string>("");
-  
+
   // Circuit Breaker state
   const [circuitBreakerEnabled, setCircuitBreakerEnabled] = useState<boolean>(false);
   const [circuitBreakerFailureThreshold, setCircuitBreakerFailureThreshold] = useState<string>("5");
   const [circuitBreakerCooldownMs, setCircuitBreakerCooldownMs] = useState<string>("60000");
-  
+
   // IBKR state
   const [ibkrHost, setIbkrHost] = useState<string>("127.0.0.1");
   const [ibkrPort, setIbkrPort] = useState<string>("7497");
@@ -691,7 +736,11 @@ function ExecutionAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקה זו מגדירה את ההגדרות הכלליות של מנוע הביצוע. היא כוללת את גודל החשבון, אחוז חשיפה מקסימלי, מספר מקסימלי של עסקאות במקביל, אחוז סיכון לעסקה (Risk per Trade), מצב הפעלה (LIVE/DEMO/BACKTEST), זמן כניסה אחרון, וזמן סגירה כפויה בסוף היום. כל אלו מגדירים את ההתנהגות הכללית של מנוע הביצוע ומוודאים שהוא פועל בצורה בטוחה ובקרת סיכונים.
+                  <strong>תיאור המחלקה:</strong> מחלקה זו מגדירה את ההגדרות הכלליות של מנוע הביצוע.
+                  היא כוללת את גודל החשבון, אחוז חשיפה מקסימלי, מספר מקסימלי של עסקאות במקביל, אחוז
+                  סיכון לעסקה (Risk per Trade), מצב הפעלה (LIVE/DEMO/BACKTEST), זמן כניסה אחרון,
+                  וזמן סגירה כפויה בסוף היום. כל אלו מגדירים את ההתנהגות הכללית של מנוע הביצוע
+                  ומוודאים שהוא פועל בצורה בטוחה ובקרת סיכונים.
                 </p>
               </div>
 
@@ -701,7 +750,7 @@ function ExecutionAccordionContent() {
                   <div className="flex items-center gap-2 justify-end">
                     <Label htmlFor="total-account-value">גודל החשבון הכולל ($)</Label>
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger asChild={true}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -715,10 +764,12 @@ function ExecutionAccordionContent() {
                       <DialogContent className="max-w-2xl text-right">
                         <DialogHeader>
                           <DialogTitle>גודל החשבון הכולל</DialogTitle>
-                          <DialogDescription asChild>
+                          <DialogDescription asChild={true}>
                             <div className="space-y-4 mt-4 text-foreground">
                               <p className="leading-relaxed">
-                                <strong>Total Account Value</strong> הוא הערך הכולל של החשבון בדולרים. ערך זה משמש לחישוב גודל הפוזיציות, מגבלות חשיפה, וסיכון לכל עסקה.
+                                <strong>Total Account Value</strong> הוא הערך הכולל של החשבון
+                                בדולרים. ערך זה משמש לחישוב גודל הפוזיציות, מגבלות חשיפה, וסיכון לכל
+                                עסקה.
                               </p>
                             </div>
                           </DialogDescription>
@@ -743,7 +794,7 @@ function ExecutionAccordionContent() {
                   <div className="flex items-center gap-2 justify-end">
                     <Label htmlFor="max-exposure-pct">אחוז חשיפה מקסימלי</Label>
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger asChild={true}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -757,10 +808,12 @@ function ExecutionAccordionContent() {
                       <DialogContent className="max-w-2xl text-right">
                         <DialogHeader>
                           <DialogTitle>אחוז חשיפה מקסימלי</DialogTitle>
-                          <DialogDescription asChild>
+                          <DialogDescription asChild={true}>
                             <div className="space-y-4 mt-4 text-foreground">
                               <p className="leading-relaxed">
-                                <strong>Max Exposure Pct</strong> מגדיר כמה אחוז מהחשבון מותר להשקיע במסחר. השאר נשאר כרזרבה. למשל, 95% משמעותו שמותר להשקיע עד 95% מהחשבון.
+                                <strong>Max Exposure Pct</strong> מגדיר כמה אחוז מהחשבון מותר להשקיע
+                                במסחר. השאר נשאר כרזרבה. למשל, 95% משמעותו שמותר להשקיע עד 95%
+                                מהחשבון.
                               </p>
                             </div>
                           </DialogDescription>
@@ -908,7 +961,11 @@ function ExecutionAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת ניהול הסיכונים מגנה על החשבון מפני הפסדים גדולים באמצעות מספר מנגנונים. היא כוללת מגבלת הפסד יומית, מגבלת Drawdown מקסימלי, מגבלת גודל פוזיציה למניה אחת, וחישוב Risk per Trade. המערכת עוקבת אחרי הביצועים היומיים, שיא החשבון, והחשיפה הנוכחית, ומונעת פתיחת עסקאות חדשות אם מושגים הספים. זהו מנגנון בטיחות קריטי להגנה על ההון.
+                  <strong>תיאור המחלקה:</strong> מחלקת ניהול הסיכונים מגנה על החשבון מפני הפסדים
+                  גדולים באמצעות מספר מנגנונים. היא כוללת מגבלת הפסד יומית, מגבלת Drawdown מקסימלי,
+                  מגבלת גודל פוזיציה למניה אחת, וחישוב Risk per Trade. המערכת עוקבת אחרי הביצועים
+                  היומיים, שיא החשבון, והחשיפה הנוכחית, ומונעת פתיחת עסקאות חדשות אם מושגים הספים.
+                  זהו מנגנון בטיחות קריטי להגנה על ההון.
                 </p>
               </div>
 
@@ -946,7 +1003,9 @@ function ExecutionAccordionContent() {
 
                 {/* Max Position Size Per Symbol */}
                 <div className="space-y-2">
-                  <Label htmlFor="max-position-size">מגבלת גודל פוזיציה למניה ($) - אופציונלי</Label>
+                  <Label htmlFor="max-position-size">
+                    מגבלת גודל פוזיציה למניה ($) - אופציונלי
+                  </Label>
                   <div className="flex justify-end">
                     <Input
                       id="max-position-size"
@@ -972,7 +1031,11 @@ function ExecutionAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקה זו מטפלת בכל ההיבטים של ניהול פוזיציות פתוחות. היא כוללת ניהול Stop Loss (כולל Trailing Stop), רילוקציה של פוזיציות (החלפת עסקה קיימת בעסקה חדשה אם הפוזיציה הקיימת מרוויחה מעל סף מסוים), וסגירה כפויה של כל הפוזיציות בסוף היום. המערכת עוקבת אחרי כל פוזיציה פתוחה, מעדכנת את מחירי ה-Stop Loss, ומנהלת את היציאות לפי לוגיקת האסטרטגיה ותנאי השוק.
+                  <strong>תיאור המחלקה:</strong> מחלקה זו מטפלת בכל ההיבטים של ניהול פוזיציות
+                  פתוחות. היא כוללת ניהול Stop Loss (כולל Trailing Stop), רילוקציה של פוזיציות
+                  (החלפת עסקה קיימת בעסקה חדשה אם הפוזיציה הקיימת מרוויחה מעל סף מסוים), וסגירה
+                  כפויה של כל הפוזיציות בסוף היום. המערכת עוקבת אחרי כל פוזיציה פתוחה, מעדכנת את
+                  מחירי ה-Stop Loss, ומנהלת את היציאות לפי לוגיקת האסטרטגיה ותנאי השוק.
                 </p>
               </div>
 
@@ -1049,7 +1112,11 @@ function ExecutionAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מפסק אוטומטי הוא מנגנון בטיחות נוסף שמגן על המערכת מפני תקלות חוזרות ונשנות. אם המערכת חווה מספר כשלונות רצופים בביצוע פקודות (למשל, בעיות חיבור ל-IBKR או דחיית פקודות), המפסק נפתח ומונע מהמערכת לנסות לבצע עסקאות נוספות למשך תקופת זמן מוגדרת. לאחר תקופת הקירור, המערכת חוזרת לפעול אוטומטית. זה מונע מהמערכת להמשיך ולהפסיד כסף במצבים של בעיות טכניות.
+                  <strong>תיאור המחלקה:</strong> מפסק אוטומטי הוא מנגנון בטיחות נוסף שמגן על המערכת
+                  מפני תקלות חוזרות ונשנות. אם המערכת חווה מספר כשלונות רצופים בביצוע פקודות (למשל,
+                  בעיות חיבור ל-IBKR או דחיית פקודות), המפסק נפתח ומונע מהמערכת לנסות לבצע עסקאות
+                  נוספות למשך תקופת זמן מוגדרת. לאחר תקופת הקירור, המערכת חוזרת לפעול אוטומטית. זה
+                  מונע מהמערכת להמשיך ולהפסיד כסף במצבים של בעיות טכניות.
                 </p>
               </div>
 
@@ -1124,7 +1191,10 @@ function ExecutionAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> הגדרות IBKR מגדירות את החיבור ל-Interactive Brokers Trader Workstation (TWS) או Gateway. כאן מגדירים את כתובת ה-IP והפורט של החיבור, מספר החשבון, וסוג החשבון (LIVE או PAPER). זה משמש רק במצב LIVE לביצוע פקודות אמיתיות.
+                  <strong>תיאור המחלקה:</strong> הגדרות IBKR מגדירות את החיבור ל-Interactive Brokers
+                  Trader Workstation (TWS) או Gateway. כאן מגדירים את כתובת ה-IP והפורט של החיבור,
+                  מספר החשבון, וסוג החשבון (LIVE או PAPER). זה משמש רק במצב LIVE לביצוע פקודות
+                  אמיתיות.
                 </p>
               </div>
 
@@ -1255,7 +1325,8 @@ function ScoringAccordionContent() {
   const [enableTrendStructure, setEnableTrendStructure] = useState<boolean>(true);
   const [minPercentageDropBetweenTops, setMinPercentageDropBetweenTops] = useState<string>("3");
   const [minCandleDistanceBetweenTops, setMinCandleDistanceBetweenTops] = useState<string>("10");
-  const [maxDifferenceBetweenTopsPercent, setMaxDifferenceBetweenTopsPercent] = useState<string>("2");
+  const [maxDifferenceBetweenTopsPercent, setMaxDifferenceBetweenTopsPercent] =
+    useState<string>("2");
   const [volumeRequirementOnReversal, setVolumeRequirementOnReversal] = useState<string>("1.5");
   const [necklineBreakConfirmation, setNecklineBreakConfirmation] = useState<boolean>(true);
   const [minPatternStrength, setMinPatternStrength] = useState<string>("5");
@@ -1339,13 +1410,17 @@ function ScoringAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת האינדיקטורים הטכניים מנתחת את התנהגות המחיר באמצעות אינדיקטורים מתקדמים כגון RSI, MACD, ממוצעים נעים, VWAP, נפח, ATR ו-Bollinger Bands. המחלקה מזהה תנאי שוק שונים (מומנטום, מגמה, תנודתיות) ומתרגמת אותם לציון בטווח -10 עד +10. המחלקה מאורגנת בקבוצות לפי סוג האינדיקטור (Momentum, Trend, Volume, Volatility, Price Action) כאשר כל קבוצה מקבלת משקל בסיסי משלה.
+                  <strong>תיאור המחלקה:</strong> מחלקת האינדיקטורים הטכניים מנתחת את התנהגות המחיר
+                  באמצעות אינדיקטורים מתקדמים כגון RSI, MACD, ממוצעים נעים, VWAP, נפח, ATR
+                  ו-Bollinger Bands. המחלקה מזהה תנאי שוק שונים (מומנטום, מגמה, תנודתיות) ומתרגמת
+                  אותם לציון בטווח -10 עד +10. המחלקה מאורגנת בקבוצות לפי סוג האינדיקטור (Momentum,
+                  Trend, Volume, Volatility, Price Action) כאשר כל קבוצה מקבלת משקל בסיסי משלה.
                 </p>
                 <p className="text-sm text-foreground mt-2">
                   <strong>משקל במאסטר סקורינג:</strong> 1.0 (משקל שווה ערך)
                 </p>
               </div>
-              
+
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">אינדיקטורים פעילים</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -1534,22 +1609,39 @@ function ScoringAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת זרימת אופציות מנתחת את הפעילות בשוק האופציות כדי לזהות תנועות משמעותיות וזרימות כסף חכמות. המחלקה בוחנת חוסר איזון בין Call ו-Put, פעילות חריגה (UOA), שינויים ב-Open Interest, תנודות ב-Implied Volatility, Skew בין Put ל-Call, ו-Gamma Exposure של דילרים. כל אלה מתורגמים לאותות שוריים או דוביים בעוצמה משתנה. המחלקה פועלת ברזולוציה תוך-יומית (MINOR) ומתמחה בזיהוי תנועות מהירות בשוק.
+                  <strong>תיאור המחלקה:</strong> מחלקת זרימת אופציות מנתחת את הפעילות בשוק האופציות
+                  כדי לזהות תנועות משמעותיות וזרימות כסף חכמות. המחלקה בוחנת חוסר איזון בין Call
+                  ו-Put, פעילות חריגה (UOA), שינויים ב-Open Interest, תנודות ב-Implied Volatility,
+                  Skew בין Put ל-Call, ו-Gamma Exposure של דילרים. כל אלה מתורגמים לאותות שוריים או
+                  דוביים בעוצמה משתנה. המחלקה פועלת ברזולוציה תוך-יומית (MINOR) ומתמחה בזיהוי תנועות
+                  מהירות בשוק.
                 </p>
                 <p className="text-sm text-foreground mt-2">
                   <strong>משקל במאסטר סקורינג:</strong> 1.05
                 </p>
               </div>
-              
+
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">אותות פעילים</h3>
                 <div className="grid grid-cols-2 gap-4">
                   {[
                     { key: "UOA", state: enableUOA, setter: setEnableUOA },
-                    { key: "Put/Call Imbalance", state: enablePutCallImbalance, setter: setEnablePutCallImbalance },
+                    {
+                      key: "Put/Call Imbalance",
+                      state: enablePutCallImbalance,
+                      setter: setEnablePutCallImbalance,
+                    },
                     { key: "IV Changes", state: enableIVChanges, setter: setEnableIVChanges },
-                    { key: "Gamma Exposure", state: enableGammaExposure, setter: setEnableGammaExposure },
-                    { key: "Open Interest", state: enableOpenInterestChanges, setter: setEnableOpenInterestChanges },
+                    {
+                      key: "Gamma Exposure",
+                      state: enableGammaExposure,
+                      setter: setEnableGammaExposure,
+                    },
+                    {
+                      key: "Open Interest",
+                      state: enableOpenInterestChanges,
+                      setter: setEnableOpenInterestChanges,
+                    },
                     { key: "Skew", state: enableSkew, setter: setEnableSkew },
                   ].map((signal) => (
                     <div key={signal.key} className="space-y-2">
@@ -1654,13 +1746,18 @@ function ScoringAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת Sentiment (חדשות ורגש שוק) מנתחת את הרגש הציבורי סביב מניה באמצעות חדשות, רשתות חברתיות (Twitter, Reddit), וסיקורים בתקשורת. המחלקה מזהה רגשות קיצוניים (שוריים או דוביים), פעילות גבוהה, סתירות בין מקורות שונים, ומגמות רב-יומיות. הניתוח מתבצע בשני timeframe-ים: תוך-יומי (MINOR) לזיהוי תנועות מהירות, ויומי/רב-יומי (MAJOR) לזיהוי מגמות ארוכות טווח. המחלקה גם מזהה סביבות Risk-On ו-Risk-Off ברמת השוק הכללי.
+                  <strong>תיאור המחלקה:</strong> מחלקת Sentiment (חדשות ורגש שוק) מנתחת את הרגש
+                  הציבורי סביב מניה באמצעות חדשות, רשתות חברתיות (Twitter, Reddit), וסיקורים
+                  בתקשורת. המחלקה מזהה רגשות קיצוניים (שוריים או דוביים), פעילות גבוהה, סתירות בין
+                  מקורות שונים, ומגמות רב-יומיות. הניתוח מתבצע בשני timeframe-ים: תוך-יומי (MINOR)
+                  לזיהוי תנועות מהירות, ויומי/רב-יומי (MAJOR) לזיהוי מגמות ארוכות טווח. המחלקה גם
+                  מזהה סביבות Risk-On ו-Risk-Off ברמת השוק הכללי.
                 </p>
                 <p className="text-sm text-foreground mt-2">
                   <strong>משקל במאסטר סקורינג:</strong> 0.80
                 </p>
               </div>
-              
+
               <div className="space-y-6">
                 {/* WEIGHTS */}
                 <div className="space-y-4 pt-4 border-t">
@@ -1670,7 +1767,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="market-macro-weight">Market Macro Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1684,10 +1781,13 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Market Macro Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Market Macro Weight</strong> מגדיר את המשקל שמוקצה לחדשות מאקרו ברמת השוק כולו (כגון החלטות FED, דוחות אינפלציה, דוחות תעסוקה). משקל גבוה יותר משמעותו שחדשות מאקרו ישפיעו יותר על הציון הסופי של המניה.
+                                    <strong>Market Macro Weight</strong> מגדיר את המשקל שמוקצה
+                                    לחדשות מאקרו ברמת השוק כולו (כגון החלטות FED, דוחות אינפלציה,
+                                    דוחות תעסוקה). משקל גבוה יותר משמעותו שחדשות מאקרו ישפיעו יותר
+                                    על הציון הסופי של המניה.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1711,7 +1811,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="sector-macro-weight">Sector Macro Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1725,10 +1825,13 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Sector Macro Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Sector Macro Weight</strong> מגדיר את המשקל שמוקצה לחדשות מאקרו ברמת הסקטור (כגון חדשות על סקטור הטכנולוגיה, אנרגיה, פיננסים). זה מסייע לזהות הזדמנויות ברמת סקטור לפני בחירת מניה ספציפית.
+                                    <strong>Sector Macro Weight</strong> מגדיר את המשקל שמוקצה
+                                    לחדשות מאקרו ברמת הסקטור (כגון חדשות על סקטור הטכנולוגיה,
+                                    אנרגיה, פיננסים). זה מסייע לזהות הזדמנויות ברמת סקטור לפני בחירת
+                                    מניה ספציפית.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1752,7 +1855,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="micro-global-weight">Micro Global Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1766,10 +1869,13 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Micro Global Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Micro Global Weight</strong> מגדיר את המשקל לחדשות ברמת החברה שלא תלויות סקטור (כגון שינוי דירוג אנליסט, הוספה/הסרה מאינדקס, פעילות פנימיים). אלה חדשות חשובות שמשפיעות על המניה עצמה.
+                                    <strong>Micro Global Weight</strong> מגדיר את המשקל לחדשות ברמת
+                                    החברה שלא תלויות סקטור (כגון שינוי דירוג אנליסט, הוספה/הסרה
+                                    מאינדקס, פעילות פנימיים). אלה חדשות חשובות שמשפיעות על המניה
+                                    עצמה.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1793,7 +1899,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="micro-company-weight">Micro Company Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1807,10 +1913,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Micro Company Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Micro Company Weight</strong> מגדיר את המשקל לחדשות ספציפיות לחברה (כגון דוחות רווח, הנחיות, דילול, רכישות עצמיות, שינויי הנהלה). אלה החדשות הכי רלוונטיות למניה הספציפית.
+                                    <strong>Micro Company Weight</strong> מגדיר את המשקל לחדשות
+                                    ספציפיות לחברה (כגון דוחות רווח, הנחיות, דילול, רכישות עצמיות,
+                                    שינויי הנהלה). אלה החדשות הכי רלוונטיות למניה הספציפית.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1841,7 +1949,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="macro-news-lifetime">חדשות מאקרו (דקות)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1855,10 +1963,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>זמן חיים של חדשות מאקרו</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>News Lifetime Minutes</strong> מגדיר כמה זמן (בדקות) חדשות נשארות רלוונטיות ומושפעות על הציון. חדשות מאקרו נשארות רלוונטיות יותר זמן (למשל 24 שעות = 1440 דקות).
+                                    <strong>News Lifetime Minutes</strong> מגדיר כמה זמן (בדקות)
+                                    חדשות נשארות רלוונטיות ומושפעות על הציון. חדשות מאקרו נשארות
+                                    רלוונטיות יותר זמן (למשל 24 שעות = 1440 דקות).
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1881,7 +1991,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="sector-news-lifetime">חדשות סקטור (דקות)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1895,10 +2005,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>זמן חיים של חדשות סקטור</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Sector News Lifetime</strong> מגדיר כמה זמן חדשות ברמת סקטור נשארות רלוונטיות. בדרך כלל זמן בינוני (למשל 12 שעות = 720 דקות).
+                                    <strong>Sector News Lifetime</strong> מגדיר כמה זמן חדשות ברמת
+                                    סקטור נשארות רלוונטיות. בדרך כלל זמן בינוני (למשל 12 שעות = 720
+                                    דקות).
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1921,7 +2033,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="company-news-lifetime">חדשות חברה (דקות)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1935,10 +2047,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>זמן חיים של חדשות חברה</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Company News Lifetime</strong> מגדיר כמה זמן חדשות ספציפיות לחברה נשארות רלוונטיות. בדרך כלל זמן קצר יותר (למשל 6 שעות = 360 דקות) כי חדשות ספציפיות מתעדכנות יותר מהר.
+                                    <strong>Company News Lifetime</strong> מגדיר כמה זמן חדשות
+                                    ספציפיות לחברה נשארות רלוונטיות. בדרך כלל זמן קצר יותר (למשל 6
+                                    שעות = 360 דקות) כי חדשות ספציפיות מתעדכנות יותר מהר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -1968,7 +2082,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-news-score">ציון מינימלי לחדשות</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -1982,10 +2096,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>ציון מינימלי לחדשות</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min News Score To Affect</strong> מגדיר את הציון המינימלי שחדשה חייבת להשיג כדי להשפיע על הציון הסופי. חדשות עם ציון נמוך יותר יועלמו ולא ישפיעו על החישוב.
+                                    <strong>Min News Score To Affect</strong> מגדיר את הציון
+                                    המינימלי שחדשה חייבת להשיג כדי להשפיע על הציון הסופי. חדשות עם
+                                    ציון נמוך יותר יועלמו ולא ישפיעו על החישוב.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2005,12 +2121,12 @@ function ScoringAccordionContent() {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 justify-end">
                         <Label>הכללת דוחות רווח</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2024,10 +2140,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>הכללת דוחות רווח</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Include Earnings</strong> קובע האם לכלול דוחות רווח בניתוח החדשות. דוחות רווח הם חדשות מרכזיות שמשפיעות באופן משמעותי על המחיר.
+                                    <strong>Include Earnings</strong> קובע האם לכלול דוחות רווח
+                                    בניתוח החדשות. דוחות רווח הם חדשות מרכזיות שמשפיעות באופן
+                                    משמעותי על המחיר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2058,7 +2176,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label>הכללת דילול</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2072,10 +2190,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>הכללת דילול</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Include Dilution</strong> קובע האם לכלול חדשות על דילול מניות (הנפקה חדשה, המרת מניות וכו') בניתוח החדשות. דילול יכול להשפיע לרעה על מחיר המניה.
+                                    <strong>Include Dilution</strong> קובע האם לכלול חדשות על דילול
+                                    מניות (הנפקה חדשה, המרת מניות וכו') בניתוח החדשות. דילול יכול
+                                    להשפיע לרעה על מחיר המניה.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2106,7 +2226,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label>הכללת רגולציה</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2120,10 +2240,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>הכללת רגולציה</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Include Regulatory</strong> קובע האם לכלול חדשות רגולטוריות (חקיקה, תקנות, תביעות, בדיקות רגולטוריות) בניתוח החדשות. חדשות רגולטוריות יכולות להשפיע משמעותית על המחיר.
+                                    <strong>Include Regulatory</strong> קובע האם לכלול חדשות
+                                    רגולטוריות (חקיקה, תקנות, תביעות, בדיקות רגולטוריות) בניתוח
+                                    החדשות. חדשות רגולטוריות יכולות להשפיע משמעותית על המחיר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2166,11 +2288,15 @@ function ScoringAccordionContent() {
                             <div className="flex justify-end gap-3">
                               <Button
                                 type="button"
-                                variant={enabledNewsSources.includes(source) ? "default" : "outline"}
+                                variant={
+                                  enabledNewsSources.includes(source) ? "default" : "outline"
+                                }
                                 className="max-w-md"
                                 onClick={() => {
                                   if (enabledNewsSources.includes(source)) {
-                                    setEnabledNewsSources(enabledNewsSources.filter((s) => s !== source));
+                                    setEnabledNewsSources(
+                                      enabledNewsSources.filter((s) => s !== source)
+                                    );
                                   } else {
                                     setEnabledNewsSources([...enabledNewsSources, source]);
                                   }
@@ -2187,7 +2313,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-news-items">מספר מקסימלי של חדשות למניה</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2201,10 +2327,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>מספר מקסימלי של חדשות למניה</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max News Items Per Symbol</strong> מגביל את מספר הפריטים המקסימלי של חדשות שמוחזקים לכל מניה. זה מונע עומס יתר ומוודא רק החדשות החשובות ביותר נשמרות.
+                                    <strong>Max News Items Per Symbol</strong> מגביל את מספר הפריטים
+                                    המקסימלי של חדשות שמוחזקים לכל מניה. זה מונע עומס יתר ומוודא רק
+                                    החדשות החשובות ביותר נשמרות.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2233,9 +2361,21 @@ function ScoringAccordionContent() {
                     {[
                       { key: "Twitter", state: includeTwitter, setter: setIncludeTwitter },
                       { key: "Reddit", state: includeReddit, setter: setIncludeReddit },
-                      { key: "News Sentiment", state: includeNewsSentiment, setter: setIncludeNewsSentiment },
-                      { key: "Stock Sentiment", state: includeStockSentiment, setter: setIncludeStockSentiment },
-                      { key: "Market Sentiment", state: includeMarketSentiment, setter: setIncludeMarketSentiment },
+                      {
+                        key: "News Sentiment",
+                        state: includeNewsSentiment,
+                        setter: setIncludeNewsSentiment,
+                      },
+                      {
+                        key: "Stock Sentiment",
+                        state: includeStockSentiment,
+                        setter: setIncludeStockSentiment,
+                      },
+                      {
+                        key: "Market Sentiment",
+                        state: includeMarketSentiment,
+                        setter: setIncludeMarketSentiment,
+                      },
                     ].map((source) => (
                       <div key={source.key} className="space-y-2">
                         <Label>{source.key}</Label>
@@ -2270,7 +2410,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-mentions">נפח אזכורים מינימלי</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2284,10 +2424,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>נפח אזכורים מינימלי</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Mentions Volume</strong> מגדיר כמה אזכורים מינימליים נדרשים כדי שהרגש יהיה משמעותי. פחות מזה לא ישפיע על הציון.
+                                    <strong>Min Mentions Volume</strong> מגדיר כמה אזכורים מינימליים
+                                    נדרשים כדי שהרגש יהיה משמעותי. פחות מזה לא ישפיע על הציון.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2310,7 +2451,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="trending-mult">Trending Multiplier</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2324,10 +2465,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Trending Multiplier</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Trending Multiplier</strong> מגדיר את המכפיל שמוחל על חדשות/נושאים טרנדיים. נושאים טרנדיים מקבלים משקל גבוה יותר.
+                                    <strong>Trending Multiplier</strong> מגדיר את המכפיל שמוחל על
+                                    חדשות/נושאים טרנדיים. נושאים טרנדיים מקבלים משקל גבוה יותר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2351,7 +2493,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="sentiment-weight">Sentiment Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2365,10 +2507,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>משקל Sentiment במאסטר סקורינג</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Sentiment Weight</strong> מגדיר את המשקל של מחלקת Sentiment במאסטר סקורינג. ברירת מחדל: 0.80. זה קובע כמה הרגש הציבורי משפיע על הציון הסופי.
+                                    <strong>Sentiment Weight</strong> מגדיר את המשקל של מחלקת
+                                    Sentiment במאסטר סקורינג. ברירת מחדל: 0.80. זה קובע כמה הרגש
+                                    הציבורי משפיע על הציון הסופי.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2404,13 +2548,18 @@ function ScoringAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת היסודות מנתחת את הבריאות הפיננסית והערכת השווי של חברות באמצעות מפתחות פיננסיים מרכזיים. המחלקה בוחנת מדדי הערכת שווי (PE, PS, PB), מדדי צמיחה (גידול ב-EPS ו-Revenue), מדדי רווחיות (שולי רווח, ROE), מדדי מינוף (Debt-to-Equity, כיסוי ריבית), תזרים מזומנים (FCF Yield), ותשואות דיבידנד. כל מדד מתורגם לציון המשקף האם המניה יקרה, זולה, או בעלת שווי הוגן. המחלקה עובדת בעיקר ברזולוציה יומית/רב-יומית (MAJOR) ומספקת תמונה ארוכת טווח על איכות החברה.
+                  <strong>תיאור המחלקה:</strong> מחלקת היסודות מנתחת את הבריאות הפיננסית והערכת
+                  השווי של חברות באמצעות מפתחות פיננסיים מרכזיים. המחלקה בוחנת מדדי הערכת שווי (PE,
+                  PS, PB), מדדי צמיחה (גידול ב-EPS ו-Revenue), מדדי רווחיות (שולי רווח, ROE), מדדי
+                  מינוף (Debt-to-Equity, כיסוי ריבית), תזרים מזומנים (FCF Yield), ותשואות דיבידנד.
+                  כל מדד מתורגם לציון המשקף האם המניה יקרה, זולה, או בעלת שווי הוגן. המחלקה עובדת
+                  בעיקר ברזולוציה יומית/רב-יומית (MAJOR) ומספקת תמונה ארוכת טווח על איכות החברה.
                 </p>
                 <p className="text-sm text-foreground mt-2">
                   <strong>משקל במאסטר סקורינג:</strong> 0.75
                 </p>
               </div>
-              
+
               <div className="space-y-6">
                 {/* VALUATION */}
                 <div className="space-y-4 pt-4 border-t">
@@ -2420,7 +2569,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-pe">Max PE Ratio</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2434,10 +2583,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max PE Ratio</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max PE</strong> מגדיר את יחס המחיר-רווח המקסימלי הנחשב מקובל. מניות עם PE גבוה יותר נחשבות יקרות יותר.
+                                    <strong>Max PE</strong> מגדיר את יחס המחיר-רווח המקסימלי הנחשב
+                                    מקובל. מניות עם PE גבוה יותר נחשבות יקרות יותר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2460,7 +2610,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-ps">Max PS Ratio</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2474,10 +2624,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max PS Ratio</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max PS</strong> מגדיר את יחס המחיר-מכירות המקסימלי. שימושי לחברות שלא רווחיות עדיין.
+                                    <strong>Max PS</strong> מגדיר את יחס המחיר-מכירות המקסימלי.
+                                    שימושי לחברות שלא רווחיות עדיין.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2500,7 +2651,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-pb">Max PB Ratio</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2514,10 +2665,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max PB Ratio</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max PB</strong> מגדיר את יחס המחיר-הון המקסימלי. מדד להערכת שווי יחסית להון העצמי.
+                                    <strong>Max PB</strong> מגדיר את יחס המחיר-הון המקסימלי. מדד
+                                    להערכת שווי יחסית להון העצמי.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2547,7 +2699,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-eps-growth">Min EPS Growth 5Y (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2561,10 +2713,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min EPS Growth 5Y</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min EPS Growth 5Y</strong> מגדיר את הצמיחה המינימלית ב-EPS (רווח למניה) על פני 5 שנים. חברות עם צמיחה נמוכה יותר נחשבות פחות מושכות.
+                                    <strong>Min EPS Growth 5Y</strong> מגדיר את הצמיחה המינימלית
+                                    ב-EPS (רווח למניה) על פני 5 שנים. חברות עם צמיחה נמוכה יותר
+                                    נחשבות פחות מושכות.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2587,7 +2741,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-revenue-growth">Min Revenue Growth YoY (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2601,10 +2755,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min Revenue Growth YoY</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Revenue Growth YoY</strong> מגדיר את הצמיחה המינימלית בהכנסות משנה לשנה. חברות צומחות נחשבות מושכות יותר למסחר.
+                                    <strong>Min Revenue Growth YoY</strong> מגדיר את הצמיחה
+                                    המינימלית בהכנסות משנה לשנה. חברות צומחות נחשבות מושכות יותר
+                                    למסחר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2634,7 +2790,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-profit-margin">Min Profit Margin (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2648,10 +2804,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min Profit Margin</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Profit Margin</strong> מגדיר את שולי הרווח המינימליים הנדרשים. חברות עם שולי רווח נמוכים יותר פחות מושכות.
+                                    <strong>Min Profit Margin</strong> מגדיר את שולי הרווח
+                                    המינימליים הנדרשים. חברות עם שולי רווח נמוכים יותר פחות מושכות.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2674,7 +2831,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-roe">Min ROE (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2688,10 +2845,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min ROE (Return on Equity)</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min ROE</strong> מגדיר את תשואת ההון העצמי המינימלית. מדד חשוב ליעילות השימוש בהון.
+                                    <strong>Min ROE</strong> מגדיר את תשואת ההון העצמי המינימלית.
+                                    מדד חשוב ליעילות השימוש בהון.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2720,7 +2878,7 @@ function ScoringAccordionContent() {
                     <div className="flex items-center gap-2 justify-end">
                       <Label htmlFor="max-debt-equity">Max Debt to Equity</Label>
                       <Dialog>
-                        <DialogTrigger asChild>
+                        <DialogTrigger asChild={true}>
                           <Button
                             type="button"
                             variant="ghost"
@@ -2734,10 +2892,11 @@ function ScoringAccordionContent() {
                         <DialogContent className="max-w-2xl text-right">
                           <DialogHeader>
                             <DialogTitle>Max Debt to Equity</DialogTitle>
-                            <DialogDescription asChild>
+                            <DialogDescription asChild={true}>
                               <div className="space-y-4 mt-4 text-foreground">
                                 <p className="leading-relaxed">
-                                  <strong>Max Debt to Equity</strong> מגדיר את יחס החוב-הון המקסימלי. חברות עם מינוף גבוה יותר נחשבות מסוכנות יותר.
+                                  <strong>Max Debt to Equity</strong> מגדיר את יחס החוב-הון
+                                  המקסימלי. חברות עם מינוף גבוה יותר נחשבות מסוכנות יותר.
                                 </p>
                               </div>
                             </DialogDescription>
@@ -2765,7 +2924,7 @@ function ScoringAccordionContent() {
                     <div className="flex items-center gap-2 justify-end">
                       <Label htmlFor="min-fcf-margin">Min Free Cashflow Margin (%)</Label>
                       <Dialog>
-                        <DialogTrigger asChild>
+                        <DialogTrigger asChild={true}>
                           <Button
                             type="button"
                             variant="ghost"
@@ -2779,10 +2938,12 @@ function ScoringAccordionContent() {
                         <DialogContent className="max-w-2xl text-right">
                           <DialogHeader>
                             <DialogTitle>Min Free Cashflow Margin</DialogTitle>
-                            <DialogDescription asChild>
+                            <DialogDescription asChild={true}>
                               <div className="space-y-4 mt-4 text-foreground">
                                 <p className="leading-relaxed">
-                                  <strong>Min Free Cashflow Margin</strong> מגדיר את שולי תזרים המזומנים החופשי המינימליים. תזרים מזומנים חיובי הוא סימן לבריאות פיננסית טובה.
+                                  <strong>Min Free Cashflow Margin</strong> מגדיר את שולי תזרים
+                                  המזומנים החופשי המינימליים. תזרים מזומנים חיובי הוא סימן לבריאות
+                                  פיננסית טובה.
                                 </p>
                               </div>
                             </DialogDescription>
@@ -2811,7 +2972,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="valuation-weight">Valuation Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2825,10 +2986,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Valuation Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Valuation Weight</strong> מגדיר את המשקל של קטגוריית הערכת השווי (PE, PS, PB) בחישוב הציון של מחלקת Fundamentals.
+                                    <strong>Valuation Weight</strong> מגדיר את המשקל של קטגוריית
+                                    הערכת השווי (PE, PS, PB) בחישוב הציון של מחלקת Fundamentals.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2852,7 +3014,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="growth-weight">Growth Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2866,10 +3028,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Growth Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Growth Weight</strong> מגדיר את המשקל של קטגוריית הצמיחה (EPS Growth, Revenue Growth) בחישוב הציון של מחלקת Fundamentals.
+                                    <strong>Growth Weight</strong> מגדיר את המשקל של קטגוריית הצמיחה
+                                    (EPS Growth, Revenue Growth) בחישוב הציון של מחלקת Fundamentals.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2893,7 +3056,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="profitability-weight">Profitability Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2907,10 +3070,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Profitability Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Profitability Weight</strong> מגדיר את המשקל של קטגוריית הרווחיות (Profit Margin, ROE) בחישוב הציון של מחלקת Fundamentals.
+                                    <strong>Profitability Weight</strong> מגדיר את המשקל של קטגוריית
+                                    הרווחיות (Profit Margin, ROE) בחישוב הציון של מחלקת
+                                    Fundamentals.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2934,7 +3099,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="leverage-weight">Leverage Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2948,10 +3113,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Leverage Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Leverage Weight</strong> מגדיר את המשקל של קטגוריית המינוף (Debt-to-Equity) בחישוב הציון של מחלקת Fundamentals.
+                                    <strong>Leverage Weight</strong> מגדיר את המשקל של קטגוריית
+                                    המינוף (Debt-to-Equity) בחישוב הציון של מחלקת Fundamentals.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -2975,7 +3141,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="cashflow-weight">Cashflow Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2989,10 +3155,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Cashflow Weight</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Cashflow Weight</strong> מגדיר את המשקל של קטגוריית תזרים המזומנים (FCF Margin) בחישוב הציון של מחלקת Fundamentals.
+                                    <strong>Cashflow Weight</strong> מגדיר את המשקל של קטגוריית
+                                    תזרים המזומנים (FCF Margin) בחישוב הציון של מחלקת Fundamentals.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3028,13 +3195,19 @@ function ScoringAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת ניהול סיכון פוזיציה בודקת את רמת הסיכון הנוכחית של הפורטפוליו ברמות שונות: רמת החשבון (Daily Drawdown, שימוש בהון), רמת הפוזיציה (סיכון לכל עסקה, ביצועי פוזיציה נוכחית), ורמת החשיפה (ריכוז במניה אחת, סקטור, או מניות קורלטיביות). המחלקה מזהה מתי הסיכון קרוב לספים המקסימליים, מתי הוא במיטבו, ומתי יש אזהרה. ציון גבוה (חיובי) משמעותו סיכון נמוך וניהול סיכון טוב, בעוד ציון נמוך (שלילי) מצביע על סיכון גבוה הדורש תשומת לב מיידית. המחלקה עוזרת להגן על ההון ולמנוע הפסדים גדולים.
+                  <strong>תיאור המחלקה:</strong> מחלקת ניהול סיכון פוזיציה בודקת את רמת הסיכון
+                  הנוכחית של הפורטפוליו ברמות שונות: רמת החשבון (Daily Drawdown, שימוש בהון), רמת
+                  הפוזיציה (סיכון לכל עסקה, ביצועי פוזיציה נוכחית), ורמת החשיפה (ריכוז במניה אחת,
+                  סקטור, או מניות קורלטיביות). המחלקה מזהה מתי הסיכון קרוב לספים המקסימליים, מתי הוא
+                  במיטבו, ומתי יש אזהרה. ציון גבוה (חיובי) משמעותו סיכון נמוך וניהול סיכון טוב, בעוד
+                  ציון נמוך (שלילי) מצביע על סיכון גבוה הדורש תשומת לב מיידית. המחלקה עוזרת להגן על
+                  ההון ולמנוע הפסדים גדולים.
                 </p>
                 <p className="text-sm text-foreground mt-2">
                   <strong>משקל במאסטר סקורינג:</strong> 0.70
                 </p>
               </div>
-              
+
               <div className="space-y-6">
                 {/* ACCOUNT_RISK */}
                 <div className="space-y-4 pt-4 border-t">
@@ -3044,7 +3217,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-capital-usage">Max Capital Usage (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3058,10 +3231,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Capital Usage Percent</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Capital Usage Percent</strong> מגדיר את אחוז ההון המקסימלי שמותר להשתמש בו למסחר. השאר נשאר כרזרבה.
+                                    <strong>Max Capital Usage Percent</strong> מגדיר את אחוז ההון
+                                    המקסימלי שמותר להשתמש בו למסחר. השאר נשאר כרזרבה.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3084,7 +3258,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-risk-per-trade-pct">Max Risk Per Trade (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3098,10 +3272,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Risk Per Trade Percent</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Risk Per Trade Percent</strong> מגדיר את אחוז הסיכון המקסימלי לכל עסקה. זה משמש לחישוב גודל הפוזיציה.
+                                    <strong>Max Risk Per Trade Percent</strong> מגדיר את אחוז הסיכון
+                                    המקסימלי לכל עסקה. זה משמש לחישוב גודל הפוזיציה.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3125,7 +3300,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-daily-drawdown-pct">Max Daily Drawdown (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3139,10 +3314,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Daily Drawdown Percent</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Daily Drawdown Percent</strong> מגדיר את ה-Drawdown המקסימלי המותר ביום אחד. אם מושג, המערכת תעצור את המסחר.
+                                    <strong>Max Daily Drawdown Percent</strong> מגדיר את ה-Drawdown
+                                    המקסימלי המותר ביום אחד. אם מושג, המערכת תעצור את המסחר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3173,7 +3349,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-symbol-exposure">Max Symbol Exposure (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3187,10 +3363,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Symbol Exposure Percent</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Symbol Exposure Percent</strong> מגדיר את החשיפה המקסימלית למניה אחת באחוזים מהחשבון. זה מונע ריכוז יתר במניה אחת.
+                                    <strong>Max Symbol Exposure Percent</strong> מגדיר את החשיפה
+                                    המקסימלית למניה אחת באחוזים מהחשבון. זה מונע ריכוז יתר במניה
+                                    אחת.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3213,7 +3391,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-sector-exposure">Max Sector Exposure (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3227,10 +3405,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Sector Exposure Percent</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Sector Exposure Percent</strong> מגדיר את החשיפה המקסימלית לסקטור אחד. זה מונע ריכוז יתר בסקטור מסוים.
+                                    <strong>Max Sector Exposure Percent</strong> מגדיר את החשיפה
+                                    המקסימלית לסקטור אחד. זה מונע ריכוז יתר בסקטור מסוים.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3253,7 +3432,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-open-positions">Max Open Positions</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3267,10 +3446,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Open Positions</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Open Positions</strong> מגדיר את מספר הפוזיציות המקסימלי שניתן להחזיק במקביל. זה מגביל את הפיזור ומוודא ניהול סיכונים טוב יותר.
+                                    <strong>Max Open Positions</strong> מגדיר את מספר הפוזיציות
+                                    המקסימלי שניתן להחזיק במקביל. זה מגביל את הפיזור ומוודא ניהול
+                                    סיכונים טוב יותר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3293,7 +3474,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-risk-reward">Min Risk/Reward Ratio</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3307,10 +3488,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min Risk/Reward Ratio</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Risk/Reward Ratio</strong> מגדיר את היחס המקסימלי בין סיכון לתגמול. רק עסקאות עם יחס זה או טוב יותר יתקבלו. למשל, 2.0 משמעותו שהתגמול צריך להיות לפחות פי 2 מהסיכון.
+                                    <strong>Min Risk/Reward Ratio</strong> מגדיר את היחס המקסימלי
+                                    בין סיכון לתגמול. רק עסקאות עם יחס זה או טוב יותר יתקבלו. למשל,
+                                    2.0 משמעותו שהתגמול צריך להיות לפחות פי 2 מהסיכון.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3334,7 +3517,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="position-risk-weight">Position Risk Weight</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3348,10 +3531,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Position Risk Weight במאסטר סקורינג</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Position Risk Weight</strong> מגדיר את המשקל של מחלקת Position Risk במאסטר סקורינג. ברירת מחדל: 0.70. זה קובע כמה ניהול הסיכון משפיע על הציון הסופי.
+                                    <strong>Position Risk Weight</strong> מגדיר את המשקל של מחלקת
+                                    Position Risk במאסטר סקורינג. ברירת מחדל: 0.70. זה קובע כמה
+                                    ניהול הסיכון משפיע על הציון הסופי.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3387,7 +3572,11 @@ function ScoringAccordionContent() {
               {/* תיאור המחלקה */}
               <div className="bg-muted/50 p-4 rounded-lg border border-border">
                 <p className="text-sm text-foreground leading-relaxed">
-                  <strong>תיאור המחלקה:</strong> מחלקת תבניות Price Action מזהה תבניות מסחר טכניות בנתוני המחיר והנפח. המחלקה מזהות תבניות כגון Double Top, Double Bottom, Breakout, Breakdown, Gaps, Candles, ו-Trend Structure. כל תבנית מזוהה לפי פרמטרים ספציפיים (כגון מרחק בין שיאים, נפח, ואישור) ומתורגמת לציון המשקף את הסיכוי להצלחה. המחלקה עובדת על מספר timeframes ומספקת אותות כניסה ויציאה מפורטים.
+                  <strong>תיאור המחלקה:</strong> מחלקת תבניות Price Action מזהה תבניות מסחר טכניות
+                  בנתוני המחיר והנפח. המחלקה מזהות תבניות כגון Double Top, Double Bottom, Breakout,
+                  Breakdown, Gaps, Candles, ו-Trend Structure. כל תבנית מזוהה לפי פרמטרים ספציפיים
+                  (כגון מרחק בין שיאים, נפח, ואישור) ומתורגמת לציון המשקף את הסיכוי להצלחה. המחלקה
+                  עובדת על מספר timeframes ומספקת אותות כניסה ויציאה מפורטים.
                 </p>
               </div>
 
@@ -3398,12 +3587,20 @@ function ScoringAccordionContent() {
                   <div className="grid grid-cols-2 gap-4">
                     {[
                       { key: "Double Top", state: enableDoubleTop, setter: setEnableDoubleTop },
-                      { key: "Double Bottom", state: enableDoubleBottom, setter: setEnableDoubleBottom },
+                      {
+                        key: "Double Bottom",
+                        state: enableDoubleBottom,
+                        setter: setEnableDoubleBottom,
+                      },
                       { key: "Breakout", state: enableBreakout, setter: setEnableBreakout },
                       { key: "Breakdown", state: enableBreakdown, setter: setEnableBreakdown },
                       { key: "Gaps", state: enableGaps, setter: setEnableGaps },
                       { key: "Candles", state: enableCandles, setter: setEnableCandles },
-                      { key: "Trend Structure", state: enableTrendStructure, setter: setEnableTrendStructure },
+                      {
+                        key: "Trend Structure",
+                        state: enableTrendStructure,
+                        setter: setEnableTrendStructure,
+                      },
                     ].map((pattern) => (
                       <div key={pattern.key} className="space-y-2">
                         <Label>{pattern.key}</Label>
@@ -3438,7 +3635,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-drop-pct">Min Percentage Drop Between Tops (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3452,10 +3649,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min Percentage Drop Between Tops</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Percentage Drop Between Tops</strong> מגדיר את האחוז המינימלי של ירידה בין השיא הראשון לשני בתבנית Double Top. זה מבטיח שיש ירידה משמעותית בין השיאים.
+                                    <strong>Min Percentage Drop Between Tops</strong> מגדיר את האחוז
+                                    המינימלי של ירידה בין השיא הראשון לשני בתבנית Double Top. זה
+                                    מבטיח שיש ירידה משמעותית בין השיאים.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3476,9 +3675,11 @@ function ScoringAccordionContent() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 justify-end">
-                        <Label htmlFor="min-candle-distance">Min Candle Distance Between Tops</Label>
+                        <Label htmlFor="min-candle-distance">
+                          Min Candle Distance Between Tops
+                        </Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3492,10 +3693,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min Candle Distance Between Tops</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Candle Distance Between Tops</strong> מגדיר את המרחק המינימלי בנרות בין השיא הראשון לשני. זה מבטיח שיש זמן מספיק בין השיאים.
+                                    <strong>Min Candle Distance Between Tops</strong> מגדיר את המרחק
+                                    המינימלי בנרות בין השיא הראשון לשני. זה מבטיח שיש זמן מספיק בין
+                                    השיאים.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3518,7 +3721,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="max-diff-tops">Max Difference Between Tops (%)</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3532,10 +3735,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Max Difference Between Tops Percent</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Max Difference Between Tops Percent</strong> מגדיר את ההפרש המקסימלי המותר בין גובה השיא הראשון לשני. זה מבטיח ששני השיאים דומים בגובה.
+                                    <strong>Max Difference Between Tops Percent</strong> מגדיר את
+                                    ההפרש המקסימלי המותר בין גובה השיא הראשון לשני. זה מבטיח ששני
+                                    השיאים דומים בגובה.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3558,7 +3763,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="volume-requirement">Volume Requirement On Reversal</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3572,10 +3777,11 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Volume Requirement On Reversal</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Volume Requirement On Reversal</strong> מגדיר את המכפיל המינימלי של נפח בעת היפוך. זה מבטיח שיש נפח מספיק לאישור התבנית.
+                                    <strong>Volume Requirement On Reversal</strong> מגדיר את המכפיל
+                                    המינימלי של נפח בעת היפוך. זה מבטיח שיש נפח מספיק לאישור התבנית.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3620,7 +3826,7 @@ function ScoringAccordionContent() {
                       <div className="flex items-center gap-2 justify-end">
                         <Label htmlFor="min-pattern-strength">Min Pattern Strength</Label>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger asChild={true}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -3634,10 +3840,12 @@ function ScoringAccordionContent() {
                           <DialogContent className="max-w-2xl text-right">
                             <DialogHeader>
                               <DialogTitle>Min Pattern Strength</DialogTitle>
-                              <DialogDescription asChild>
+                              <DialogDescription asChild={true}>
                                 <div className="space-y-4 mt-4 text-foreground">
                                   <p className="leading-relaxed">
-                                    <strong>Min Pattern Strength</strong> מגדיר את החוזק המינימלי הנדרש לתבנית כדי להיות מוכרת. חוזק גבוה יותר משמעותו תבנית איכותית יותר.
+                                    <strong>Min Pattern Strength</strong> מגדיר את החוזק המינימלי
+                                    הנדרש לתבנית כדי להיות מוכרת. חוזק גבוה יותר משמעותו תבנית
+                                    איכותית יותר.
                                   </p>
                                 </div>
                               </DialogDescription>
@@ -3676,23 +3884,23 @@ export default function TradeRouterPage() {
 
   // Global Config - Trading Enabled
   const [tradingEnabled, setTradingEnabled] = useState<boolean>(true);
-  
+
   // Global Config - Rescore Interval
   const [rescoreIntervalSeconds, setRescoreIntervalSeconds] = useState<string>("1");
 
   // Global Config - Module Weights (matching scoring_system.py defaults)
   const [moduleWeights, setModuleWeights] = useState({
-    macro: "0.14",           // w_macro from scoring_system.py
-    sectorMacro: "0.14",     // w_sector from scoring_system.py
-    news: "0.22",            // w_news from scoring_system.py
-    technical: "0.26",       // w_technical from scoring_system.py
-    priceAction: "1.2",      // Internal weight (part of technical)
-    optionsFlow: "0.12",     // w_options from scoring_system.py
-    sentiment: "0.8",        // Internal sentiment weight
-    fundamentals: "0.75",    // Internal fundamentals weight
-    positionRisk: "0.70",    // Internal position risk weight
-    strategyContext: "1.0",  // Internal strategy context weight
-    micro: "0.12",           // w_micro from scoring_system.py
+    macro: "0.14", // w_macro from scoring_system.py
+    sectorMacro: "0.14", // w_sector from scoring_system.py
+    news: "0.22", // w_news from scoring_system.py
+    technical: "0.26", // w_technical from scoring_system.py
+    priceAction: "1.2", // Internal weight (part of technical)
+    optionsFlow: "0.12", // w_options from scoring_system.py
+    sentiment: "0.8", // Internal sentiment weight
+    fundamentals: "0.75", // Internal fundamentals weight
+    positionRisk: "0.70", // Internal position risk weight
+    strategyContext: "1.0", // Internal strategy context weight
+    micro: "0.12", // w_micro from scoring_system.py
   });
 
   // State for module enable/disable switches
@@ -3758,7 +3966,7 @@ export default function TradeRouterPage() {
                     <CardDescription>ניהול והגדרת מערכת הביצועים לביצוע עסקאות</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-right" suppressHydrationWarning>
+                    <div className="text-right" suppressHydrationWarning={true}>
                       <ExecutionAccordionContent />
                     </div>
                   </CardContent>
@@ -3772,7 +3980,7 @@ export default function TradeRouterPage() {
                     <CardDescription>ניהול והגדרת מערכת הסריקה לזיהוי דפוסים</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-right" suppressHydrationWarning>
+                    <div className="text-right" suppressHydrationWarning={true}>
                       <ScanningAccordionContent />
                     </div>
                   </CardContent>
@@ -3792,17 +4000,19 @@ export default function TradeRouterPage() {
                       {/* Master Scoring System - ללא Accordion */}
                       <div className="pt-6 border-t border-border">
                         <h1 className="text-3xl font-bold mb-6">Master Scoring System</h1>
-                        
+
                         {/* הגדרות כלליות */}
                         <div className="space-y-6 mb-8">
                           <h3 className="text-xl font-medium mb-4">הגדרות כלליות</h3>
-                          
+
                           {/* Direction Threshold */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 justify-end">
-                              <Label htmlFor="direction-threshold">סף לקביעת כיוון (Direction Threshold)</Label>
+                              <Label htmlFor="direction-threshold">
+                                סף לקביעת כיוון (Direction Threshold)
+                              </Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -3816,21 +4026,36 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>סף לקביעת כיוון (Direction Threshold)</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>Direction Threshold</strong> הוא פרמטר במערכת Master Scoring שקובע מתי הציון מספיק חזק כדי לקבוע כיוון מסחר.
+                                          <strong>Direction Threshold</strong> הוא פרמטר במערכת
+                                          Master Scoring שקובע מתי הציון מספיק חזק כדי לקבוע כיוון
+                                          מסחר.
                                         </p>
                                         <div className="space-y-2">
-                                          <p><strong>איך זה עובד:</strong></p>
+                                          <p>
+                                            <strong>איך זה עובד:</strong>
+                                          </p>
                                           <ul className="list-disc list-inside space-y-1 mr-4">
-                                            <li>אם הציון הסופי ≥ ערך הסף → כיוון: <strong>LONG</strong> (שורי - לקנות)</li>
-                                            <li>אם הציון הסופי ≤ ערך הסף שלילי → כיוון: <strong>SHORT</strong> (דובי - למכור)</li>
-                                            <li>אם הציון בין הערכים → כיוון: <strong>NEUTRAL</strong> (נייטרלי - לא לפעול)</li>
+                                            <li>
+                                              אם הציון הסופי ≥ ערך הסף → כיוון:{" "}
+                                              <strong>LONG</strong> (שורי - לקנות)
+                                            </li>
+                                            <li>
+                                              אם הציון הסופי ≤ ערך הסף שלילי → כיוון:{" "}
+                                              <strong>SHORT</strong> (דובי - למכור)
+                                            </li>
+                                            <li>
+                                              אם הציון בין הערכים → כיוון: <strong>NEUTRAL</strong>{" "}
+                                              (נייטרלי - לא לפעול)
+                                            </li>
                                           </ul>
                                         </div>
                                         <div className="space-y-2">
-                                          <p><strong>דוגמה עם ערך ברירת מחדל (2.0):</strong></p>
+                                          <p>
+                                            <strong>דוגמה עם ערך ברירת מחדל (2.0):</strong>
+                                          </p>
                                           <ul className="list-disc list-inside space-y-1 mr-4">
                                             <li>ציון 1.5 → נייטרלי (לא מספיק חזק לפעולה)</li>
                                             <li>ציון 2.5 → LONG (חזק מספיק לפעולה)</li>
@@ -3838,7 +4063,10 @@ export default function TradeRouterPage() {
                                           </ul>
                                         </div>
                                         <p className="leading-relaxed">
-                                          <strong>למה זה חשוב?</strong> הפרמטר מסנן אותות חלשים ומונע פעולה כשאין ביטחון מספיק בכיוון. ככל שהערך גבוה יותר, הדרישה לעוצמה גבוהה יותר לפני קביעת כיוון. ערך 2.0 הוא ברירת המחדל ונחשב מאוזן.
+                                          <strong>למה זה חשוב?</strong> הפרמטר מסנן אותות חלשים
+                                          ומונע פעולה כשאין ביטחון מספיק בכיוון. ככל שהערך גבוה
+                                          יותר, הדרישה לעוצמה גבוהה יותר לפני קביעת כיוון. ערך 2.0
+                                          הוא ברירת המחדל ונחשב מאוזן.
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -3862,9 +4090,11 @@ export default function TradeRouterPage() {
                           {/* Min Master Score For Trading */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 justify-end">
-                              <Label htmlFor="min-master-score-trading">ציון Master מינימלי למסחר</Label>
+                              <Label htmlFor="min-master-score-trading">
+                                ציון Master מינימלי למסחר
+                              </Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -3878,10 +4108,12 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>ציון Master מינימלי למסחר</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>Min Master Score For Trading</strong> מגדיר את הציון המינימלי שהמניה חייבת להשיג כדי להיות מועמדת למסחר. מניות עם ציון נמוך יותר לא ייכללו ברשימת ההזדמנויות.
+                                          <strong>Min Master Score For Trading</strong> מגדיר את
+                                          הציון המינימלי שהמניה חייבת להשיג כדי להיות מועמדת למסחר.
+                                          מניות עם ציון נמוך יותר לא ייכללו ברשימת ההזדמנויות.
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -3907,7 +4139,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="long-threshold">סף Long (Long Threshold)</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -3921,10 +4153,12 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>סף Long (Long Threshold)</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>Long Threshold</strong> מגדיר את הציון המינימלי הנדרש כדי לקבוע כיוון LONG (שורי - לקנות). אם הציון הסופי ≥ ערך זה, הכיוון יהיה LONG.
+                                          <strong>Long Threshold</strong> מגדיר את הציון המינימלי
+                                          הנדרש כדי לקבוע כיוון LONG (שורי - לקנות). אם הציון הסופי
+                                          ≥ ערך זה, הכיוון יהיה LONG.
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -3950,7 +4184,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="short-threshold">סף Short (Short Threshold)</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -3964,10 +4198,12 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>סף Short (Short Threshold)</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>Short Threshold</strong> מגדיר את הציון המקסימלי (שלילי) הנדרש כדי לקבוע כיוון SHORT (דובי - למכור). אם הציון הסופי ≤ ערך זה (שלילי), הכיוון יהיה SHORT.
+                                          <strong>Short Threshold</strong> מגדיר את הציון המקסימלי
+                                          (שלילי) הנדרש כדי לקבוע כיוון SHORT (דובי - למכור). אם
+                                          הציון הסופי ≤ ערך זה (שלילי), הכיוון יהיה SHORT.
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -3993,7 +4229,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="max-symbols-rank">מספר מקסימלי של מניות לדירוג</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4007,10 +4243,12 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>מספר מקסימלי של מניות לדירוג</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>Max Symbols To Rank</strong> מגביל את מספר המניות המקסימלי שמועמדות לדירוג במערכת Master Scoring. זה מסייע לשלוט בעומס המערכת ולחזור רק את המניות המובילות.
+                                          <strong>Max Symbols To Rank</strong> מגביל את מספר המניות
+                                          המקסימלי שמועמדות לדירוג במערכת Master Scoring. זה מסייע
+                                          לשלוט בעומס המערכת ולחזור רק את המניות המובילות.
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4034,7 +4272,7 @@ export default function TradeRouterPage() {
                         {/* Global Config - Trading Enabled */}
                         <div className="space-y-6 mb-8">
                           <h3 className="text-xl font-medium mb-4">הגדרות גלובליות</h3>
-                          
+
                           {/* Trading Enabled */}
                           <div className="space-y-2">
                             <Label>האם להפעיל מסחר (Trading Enabled)?</Label>
@@ -4063,7 +4301,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="rescore-interval">מרווח עדכון ניקוד (שניות)</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4077,10 +4315,12 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>מרווח עדכון ניקוד (שניות)</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>Rescore Interval Seconds</strong> מגדיר כמה פעמים בשנייה המערכת מעדכנת את הניקוד. ערך נמוך יותר = עדכונים תכופים יותר, אבל יותר עומס על המערכת. ברירת מחדל: 1 שנייה.
+                                          <strong>Rescore Interval Seconds</strong> מגדיר כמה פעמים
+                                          בשנייה המערכת מעדכנת את הניקוד. ערך נמוך יותר = עדכונים
+                                          תכופים יותר, אבל יותר עומס על המערכת. ברירת מחדל: 1 שנייה.
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4104,17 +4344,20 @@ export default function TradeRouterPage() {
 
                         {/* Global Config - Module Weights */}
                         <div className="space-y-6 mb-8">
-                          <h3 className="text-xl font-medium mb-4">משקלי מודולים (Module Weights)</h3>
+                          <h3 className="text-xl font-medium mb-4">
+                            משקלי מודולים (Module Weights)
+                          </h3>
                           <p className="text-sm text-muted-foreground mb-4">
-                            משקלים גלובליים לכל מודול במערכת Master Scoring. משקלים גבוהים יותר = השפעה גדולה יותר על הניקוד הסופי.
+                            משקלים גלובליים לכל מודול במערכת Master Scoring. משקלים גבוהים יותר =
+                            השפעה גדולה יותר על הניקוד הסופי.
                           </p>
-                          
+
                           {/* Macro Weight */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-macro">משקל Macro</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4128,10 +4371,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Macro</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Macro</strong> קובע את ההשפעה של ניתוח מאקרו (Market Trend, Volatility, Rates, Credit Risk, Breadth, Sentiment) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.14 (מתוך scoring_system.py)
+                                          <strong>משקל Macro</strong> קובע את ההשפעה של ניתוח מאקרו
+                                          (Market Trend, Volatility, Rates, Credit Risk, Breadth,
+                                          Sentiment) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל:
+                                          0.14 (מתוך scoring_system.py)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4157,7 +4403,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-sector-macro">משקל Sector Macro</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4171,10 +4417,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Sector Macro</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Sector Macro</strong> קובע את ההשפעה של ניתוח סקטורים (Sector Trend, Relative Strength, Momentum, Volatility, Rotation) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.14 (מתוך scoring_system.py)
+                                          <strong>משקל Sector Macro</strong> קובע את ההשפעה של ניתוח
+                                          סקטורים (Sector Trend, Relative Strength, Momentum,
+                                          Volatility, Rotation) על הניקוד הסופי במאסטר סקורינג.
+                                          ברירת מחדל: 0.14 (מתוך scoring_system.py)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4188,7 +4437,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.sectorMacro}
-                                onChange={(e) => handleModuleWeightChange("sectorMacro", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("sectorMacro", e.target.value)
+                                }
                                 placeholder="0.9"
                                 className="max-w-md"
                               />
@@ -4200,7 +4451,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-news">משקל News</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4214,10 +4465,12 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל News</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל News</strong> קובע את ההשפעה של חדשות מיקרו (חברתיות) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.22 (מתוך scoring_system.py)
+                                          <strong>משקל News</strong> קובע את ההשפעה של חדשות מיקרו
+                                          (חברתיות) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.22
+                                          (מתוך scoring_system.py)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4243,7 +4496,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-technical">משקל Technical</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4257,10 +4510,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Technical</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Technical</strong> קובע את ההשפעה של אינדיקטורים טכניים (RSI, MACD, SMA, VWAP, Volume, ATR, Bollinger) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.26 (מתוך scoring_system.py)
+                                          <strong>משקל Technical</strong> קובע את ההשפעה של
+                                          אינדיקטורים טכניים (RSI, MACD, SMA, VWAP, Volume, ATR,
+                                          Bollinger) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל:
+                                          0.26 (מתוך scoring_system.py)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4274,7 +4530,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.technical}
-                                onChange={(e) => handleModuleWeightChange("technical", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("technical", e.target.value)
+                                }
                                 placeholder="1.2"
                                 className="max-w-md"
                               />
@@ -4286,7 +4544,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-price-action">משקל Price Action</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4300,10 +4558,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Price Action</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Price Action</strong> קובע את המשקל הפנימי של תבניות Price Action בתוך מחלקת Technical Indicators. זה משקל פנימי (לא במאסטר סקורינג ישירות). ברירת מחדל: 1.2 (משקל פנימי לקבוצת PRICE_ACTION)
+                                          <strong>משקל Price Action</strong> קובע את המשקל הפנימי של
+                                          תבניות Price Action בתוך מחלקת Technical Indicators. זה
+                                          משקל פנימי (לא במאסטר סקורינג ישירות). ברירת מחדל: 1.2
+                                          (משקל פנימי לקבוצת PRICE_ACTION)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4317,7 +4578,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.priceAction}
-                                onChange={(e) => handleModuleWeightChange("priceAction", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("priceAction", e.target.value)
+                                }
                                 placeholder="1.2"
                                 className="max-w-md"
                               />
@@ -4329,7 +4592,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-options-flow">משקל Options Flow</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4343,10 +4606,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Options Flow</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Options Flow</strong> קובע את ההשפעה של זרימת אופציות (Put/Call Ratio, UOA, IV, Skew, Gamma) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.12 (מתוך scoring_system.py)
+                                          <strong>משקל Options Flow</strong> קובע את ההשפעה של זרימת
+                                          אופציות (Put/Call Ratio, UOA, IV, Skew, Gamma) על הניקוד
+                                          הסופי במאסטר סקורינג. ברירת מחדל: 0.12 (מתוך
+                                          scoring_system.py)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4360,7 +4626,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.optionsFlow}
-                                onChange={(e) => handleModuleWeightChange("optionsFlow", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("optionsFlow", e.target.value)
+                                }
                                 placeholder="0.12"
                                 className="max-w-md"
                               />
@@ -4372,7 +4640,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-sentiment">משקל Sentiment</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4386,10 +4654,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Sentiment</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Sentiment</strong> קובע את המשקל הפנימי של סנטימנט (טוויטר, רדיט, חדשות, רגש שוק) במערכת הניקוד. זה משקל פנימי בתוך מחלקת Sentiment. ברירת מחדל: 0.8 (משקל פנימי)
+                                          <strong>משקל Sentiment</strong> קובע את המשקל הפנימי של
+                                          סנטימנט (טוויטר, רדיט, חדשות, רגש שוק) במערכת הניקוד. זה
+                                          משקל פנימי בתוך מחלקת Sentiment. ברירת מחדל: 0.8 (משקל
+                                          פנימי)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4403,7 +4674,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.sentiment}
-                                onChange={(e) => handleModuleWeightChange("sentiment", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("sentiment", e.target.value)
+                                }
                                 placeholder="0.8"
                                 className="max-w-md"
                               />
@@ -4415,7 +4688,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-fundamentals">משקל Fundamentals</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4429,10 +4702,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Fundamentals</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Fundamentals</strong> קובע את המשקל הפנימי של ניתוח יסודות (PE, ROE, Growth, Profitability, וכו') במערכת הניקוד. זה משקל פנימי בתוך מחלקת Fundamentals. ברירת מחדל: 0.75 (משקל פנימי)
+                                          <strong>משקל Fundamentals</strong> קובע את המשקל הפנימי של
+                                          ניתוח יסודות (PE, ROE, Growth, Profitability, וכו') במערכת
+                                          הניקוד. זה משקל פנימי בתוך מחלקת Fundamentals. ברירת מחדל:
+                                          0.75 (משקל פנימי)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4446,7 +4722,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.fundamentals}
-                                onChange={(e) => handleModuleWeightChange("fundamentals", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("fundamentals", e.target.value)
+                                }
                                 placeholder="0.75"
                                 className="max-w-md"
                               />
@@ -4458,7 +4736,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-position-risk">משקל Position Risk</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4472,10 +4750,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Position Risk</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Position Risk</strong> קובע את המשקל הפנימי של ניהול סיכון פוזיציה (Account Risk, Position Risk, Exposure Limits) במערכת הניקוד. זה משקל פנימי בתוך מחלקת Position Risk. ברירת מחדל: 0.70 (משקל פנימי)
+                                          <strong>משקל Position Risk</strong> קובע את המשקל הפנימי
+                                          של ניהול סיכון פוזיציה (Account Risk, Position Risk,
+                                          Exposure Limits) במערכת הניקוד. זה משקל פנימי בתוך מחלקת
+                                          Position Risk. ברירת מחדל: 0.70 (משקל פנימי)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4489,7 +4770,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.positionRisk}
-                                onChange={(e) => handleModuleWeightChange("positionRisk", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("positionRisk", e.target.value)
+                                }
                                 placeholder="0.7"
                                 className="max-w-md"
                               />
@@ -4501,7 +4784,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-strategy-context">משקל Strategy Context</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4515,10 +4798,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Strategy Context</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Strategy Context</strong> קובע את המשקל הפנימי של הקשר אסטרטגי (התאמה בין אסטרטגיות זיהוי תבניות לכיוון המסחר) במערכת הסריקה. זה משקל פנימי בתוך מערכת הסריקה. ברירת מחדל: 1.0 (משקל פנימי)
+                                          <strong>משקל Strategy Context</strong> קובע את המשקל
+                                          הפנימי של הקשר אסטרטגי (התאמה בין אסטרטגיות זיהוי תבניות
+                                          לכיוון המסחר) במערכת הסריקה. זה משקל פנימי בתוך מערכת
+                                          הסריקה. ברירת מחדל: 1.0 (משקל פנימי)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4532,7 +4818,9 @@ export default function TradeRouterPage() {
                                 type="number"
                                 step="0.01"
                                 value={moduleWeights.strategyContext}
-                                onChange={(e) => handleModuleWeightChange("strategyContext", e.target.value)}
+                                onChange={(e) =>
+                                  handleModuleWeightChange("strategyContext", e.target.value)
+                                }
                                 placeholder="1.0"
                                 className="max-w-md"
                               />
@@ -4544,7 +4832,7 @@ export default function TradeRouterPage() {
                             <div className="flex items-center gap-2 justify-end">
                               <Label htmlFor="weight-micro">משקל Micro Company</Label>
                               <Dialog>
-                                <DialogTrigger asChild>
+                                <DialogTrigger asChild={true}>
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -4558,10 +4846,13 @@ export default function TradeRouterPage() {
                                 <DialogContent className="max-w-2xl text-right">
                                   <DialogHeader>
                                     <DialogTitle>משקל Micro Company</DialogTitle>
-                                    <DialogDescription asChild>
+                                    <DialogDescription asChild={true}>
                                       <div className="space-y-4 mt-4 text-foreground">
                                         <p className="leading-relaxed">
-                                          <strong>משקל Micro Company</strong> קובע את ההשפעה של חדשות מיקרו-חברה (דוחות רווח, הנחיות, דילול, רכישות עצמיות, שינויי הנהלה) על הניקוד הסופי במאסטר סקורינג. ברירת מחדל: 0.12 (מתוך scoring_system.py)
+                                          <strong>משקל Micro Company</strong> קובע את ההשפעה של
+                                          חדשות מיקרו-חברה (דוחות רווח, הנחיות, דילול, רכישות
+                                          עצמיות, שינויי הנהלה) על הניקוד הסופי במאסטר סקורינג.
+                                          ברירת מחדל: 0.12 (מתוך scoring_system.py)
                                         </p>
                                       </div>
                                     </DialogDescription>
@@ -4586,7 +4877,7 @@ export default function TradeRouterPage() {
                         {/* הפעלה/כיבוי מחלקות */}
                         <div className="space-y-6">
                           <h3 className="text-xl font-medium mb-4">הפעלה/כיבוי מחלקות</h3>
-                          
+
                           {/* Use Macro */}
                           <div className="space-y-2">
                             <Label>האם להשתמש במחלקת Macro?</Label>
@@ -4731,7 +5022,9 @@ export default function TradeRouterPage() {
                             <div className="flex justify-end gap-3">
                               <Button
                                 type="button"
-                                variant={moduleStates.strategyContext === true ? "default" : "outline"}
+                                variant={
+                                  moduleStates.strategyContext === true ? "default" : "outline"
+                                }
                                 className="max-w-md"
                                 onClick={() => handleModuleToggle("strategyContext", true)}
                               >
@@ -4739,7 +5032,9 @@ export default function TradeRouterPage() {
                               </Button>
                               <Button
                                 type="button"
-                                variant={moduleStates.strategyContext === false ? "default" : "outline"}
+                                variant={
+                                  moduleStates.strategyContext === false ? "default" : "outline"
+                                }
                                 className="max-w-md"
                                 onClick={() => handleModuleToggle("strategyContext", false)}
                               >
@@ -4762,7 +5057,9 @@ export default function TradeRouterPage() {
                               </Button>
                               <Button
                                 type="button"
-                                variant={moduleStates.positionRisk === false ? "default" : "outline"}
+                                variant={
+                                  moduleStates.positionRisk === false ? "default" : "outline"
+                                }
                                 className="max-w-md"
                                 onClick={() => handleModuleToggle("positionRisk", false)}
                               >

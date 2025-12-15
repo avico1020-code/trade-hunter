@@ -1,8 +1,21 @@
+/**
+ * Market Data Streaming API Route
+ *
+ * IMPORTANT: This endpoint reads from MarketDataHub which is fed by REAL-TIME STREAMING only.
+ * There is NO snapshot mode - all data comes from continuous streaming subscriptions.
+ *
+ * If symbol is not subscribed, it automatically subscribes to IBKR streaming.
+ * This route ensures symbols are subscribed to streaming before reading data.
+ *
+ * NOTE: Despite the route name "/snapshot", this endpoint returns data from STREAMING subscriptions.
+ * The name is kept for backward compatibility, but all data is real-time streaming.
+ */
+
 import { NextResponse } from "next/server";
-import { getTwsClient } from "@/lib/ibkr/twsClient.simple";
+import { getIbkrMarketDataService } from "@/lib/server/ibkr";
+import { getMarketDataHub } from "@/lib/server/market-data";
 
 export async function GET(request: Request) {
-  const startTime = Date.now();
   const symbol = new URL(request.url).searchParams.get("symbol") || "";
 
   // Quick validation
@@ -10,155 +23,109 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Symbol is required" }, { status: 400 });
   }
 
-  console.log(`\n========== [API] REQUEST START: ${symbol} ==========`);
-  console.log(`[API] Time: ${new Date().toISOString()}`);
-  console.log(`[API] URL: ${request.url}`);
-  
+  console.log(`[Market Data API] 📥 Request for ${symbol}`);
+
   try {
-    // Get singleton client - always uses same instance
-    console.log(`[API] Step 1: Getting TWS client singleton...`);
-    
-    let client;
-    try {
-      // Use default port 4001 (Paper Trading) - singleton will handle reuse
-      client = getTwsClient({ port: 4001 });
-      console.log(`[API] Step 2: ✅ Client singleton obtained`);
-      console.log(`[API]    Client ID: ${client.getClientId()}`);
-      console.log(`[API]    Connected: ${client.isConnected()}`);
-    } catch (clientErr) {
-      const clientErrorMsg = clientErr instanceof Error ? clientErr.message : String(clientErr);
-      console.error(`[API] ❌ Failed to get TWS client:`, clientErrorMsg);
-      console.error(`[API]    Stack:`, clientErr instanceof Error ? clientErr.stack : 'N/A');
-      return NextResponse.json(
-        {
-          error: "Failed to initialize IB Gateway client",
-          details: clientErrorMsg,
-          suggestion: "Check if @stoqey/ib package is installed correctly (bun install)"
-        },
-        { status: 500 }
-      );
-    }
-    
-    // Ensure connection
-    if (!client.isConnected()) {
-      console.log(`[API] Step 3: Not connected, attempting connection...`);
+    const hub = getMarketDataHub();
+    let tick = hub.getLastMarketTick(symbol);
+
+    console.log(
+      `[Market Data API] 📊 Current tick for ${symbol}:`,
+      tick ? `$${tick.price}` : "null"
+    );
+
+    // If no data available, try to subscribe to streaming (lazy subscription)
+    if (!tick || tick.price === 0) {
       try {
-        // Simple connection with timeout
-        console.log(`[API]    Calling client.connect()...`);
-        const connectPromise = client.connect();
-        const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error("Connection timeout after 20 seconds")), 20000)
-        );
-        
-        await Promise.race([connectPromise, timeoutPromise]);
-        console.log(`[API] Step 4: ✅ Connection promise resolved`);
-        
-        // Check if actually connected
-        if (!client.isConnected()) {
-          console.error(`[API] ⚠️  Connection promise resolved but isConnected() = false`);
-          throw new Error("Connection promise resolved but client not connected");
+        const marketDataService = getIbkrMarketDataService();
+        const activeSubscriptions = marketDataService.getActiveSubscriptions();
+
+        console.log(`[Market Data API] 📋 Active subscriptions:`, activeSubscriptions);
+
+        // Only subscribe if not already subscribed (avoid duplicate subscriptions)
+        if (!activeSubscriptions.includes(symbol.toUpperCase())) {
+          console.log(
+            `[Market Data API] 🔴 Auto-subscribing to ${symbol} for REAL-TIME STREAMING...`
+          );
+          try {
+            await marketDataService.subscribeMarketData(symbol);
+            console.log(`[Market Data API] ✅ Subscription initiated for ${symbol}`);
+          } catch (subErr) {
+            console.error(`[Market Data API] ❌ Subscription failed for ${symbol}:`, subErr);
+            throw subErr;
+          }
+          // Wait a bit for first tick to arrive from streaming
+          console.log(`[Market Data API] ⏳ Waiting 1.5s for first tick...`);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        } else {
+          console.log(`[Market Data API] ℹ️ ${symbol} already subscribed, waiting for tick...`);
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
-        
-        console.log(`[API] Step 5: ✅ Connection confirmed! isConnected() = true`);
-      } catch (connectErr) {
-        const errorMsg = connectErr instanceof Error ? connectErr.message : String(connectErr);
-        console.error(`[API] ❌ Connection error:`, errorMsg);
-        console.error(`[API]    Error type: ${connectErr instanceof Error ? connectErr.constructor.name : typeof connectErr}`);
-        console.error(`[API]    Stack:`, connectErr instanceof Error ? connectErr.stack : 'N/A');
-        
-        // Return detailed error
-        return NextResponse.json(
-          {
-            error: "Failed to connect to IB Gateway",
-            details: errorMsg,
-            suggestion: "Make sure IB Gateway is running, fully connected, and API is enabled (Settings → API → Settings → Enable ActiveX and Socket Clients)"
-          },
-          { status: 503 }
+
+        // Try to get tick again after subscription
+        tick = hub.getLastMarketTick(symbol);
+        console.log(
+          `[Market Data API] 📊 Tick after subscription for ${symbol}:`,
+          tick ? `$${tick.price}` : "null"
         );
+      } catch (subscribeError) {
+        console.warn(
+          `[Market Data API] ⚠️ Failed to auto-subscribe to ${symbol} for streaming:`,
+          subscribeError
+        );
+        // Continue - we'll return 404 if still no data
       }
-    } else {
-      console.log(`[API] Step 3: ✅ Already connected, reusing existing connection`);
     }
 
-    // Get market data snapshot
-    console.log(`[API] Step 6: Fetching market data for ${symbol}...`);
-
-    try {
-      const snapshot = await client.getMarketDataSnapshot(symbol);
-
-      if (!snapshot) {
-        throw new Error(`No market data received for ${symbol}`);
-      }
-
-      // Convert to the expected format (field IDs as keys)
-      const formattedSnapshot: Record<string, string> = {
-        conid: String(snapshot.conid || "0"),
-      };
-
-      // Add all fields from the snapshot
-      Object.keys(snapshot).forEach((key) => {
-        if (key !== "conid" && snapshot[key as keyof typeof snapshot] !== undefined) {
-          formattedSnapshot[key] = String(snapshot[key as keyof typeof snapshot]);
-        }
-      });
-
-      const hasData = formattedSnapshot["31"] && formattedSnapshot["7295"] && formattedSnapshot["7308"];
-      
-      // Log similar to Python's tickPrice/tickSize callbacks
-      console.log(`✅ [API] [REALTIME] Symbol: ${symbol}, ReqId: ${snapshot.conid}`);
-      console.log(`   Type: Last Price, Price: ${formattedSnapshot["31"] || "N/A"}`);
-      console.log(`   Type: Close, Price: ${formattedSnapshot["7295"] || "N/A"}`);
-      console.log(`   Type: Volume, Size: ${formattedSnapshot["7308"] || "N/A"}`);
-      
-      if (!hasData) {
-        console.warn(`⚠️ [API] ${symbol}: Incomplete data - Last: ${formattedSnapshot["31"] || "N/A"}, Close: ${formattedSnapshot["7295"] || "N/A"}, Volume: ${formattedSnapshot["7308"] || "N/A"}`);
-        console.warn(`⚠️ [API] This might indicate delayed market data or subscription issues`);
-      }
-
-      return NextResponse.json(formattedSnapshot);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`❌ [API] Failed to fetch market data for ${symbol}:`, errorMsg);
-      
-      // Check if it's an authentication/connection error
-      if (errorMsg.includes("not connected") || errorMsg.includes("authenticated") || errorMsg.includes("ECONNREFUSED")) {
-        return NextResponse.json(
-          {
-            error: "Failed to connect to IB Gateway Client Portal",
-            details: errorMsg,
-            suggestion: "Please ensure IB Gateway is running, fully connected, and you can access https://localhost:5000"
-          },
-          { status: 503 }
-        );
-      }
-      
-      // Check if symbol not found
-      if (errorMsg.includes("No results found") || errorMsg.includes("No market data")) {
-        return NextResponse.json(
-          {
-            error: `Symbol ${symbol} not found in IB Gateway`,
-            details: errorMsg,
-          },
-          { status: 404 }
-        );
-      }
-      
+    if (!tick || tick.price === 0) {
+      console.warn(`[Market Data API] ❌ No data available for ${symbol} - returning 404`);
       return NextResponse.json(
         {
-          error: `Failed to fetch market data for ${symbol}`,
-          details: errorMsg,
+          error: `No market data available for ${symbol}`,
+          suggestion:
+            "Symbol may not be subscribed yet. Check IBKR connection and streaming subscription.",
+          debug: {
+            hubHasTick: !!tick,
+            tickPrice: tick?.price ?? null,
+          },
         },
-        { status: 500 }
+        { status: 404 }
       );
     }
+
+    // Convert MarketTick to the expected format (for backward compatibility)
+    // Data comes from REAL-TIME STREAMING, not snapshot
+    // Field IDs match IBKR field IDs: 31=last, 7295=close, 7308=volume
+    const formattedSnapshot: Record<string, string> = {
+      conid: "0", // Contract ID not available from MarketDataHub
+      "31": String(tick.price), // Last price
+      "7295": String(tick.price), // Close price (use last as fallback)
+      "7308": String(tick.size || 0), // Volume
+    };
+
+    // If we have state with more info, use it
+    const state = hub.getSymbolState(symbol);
+    if (state?.lastTick) {
+      const lt = state.lastTick;
+      if (lt.close) formattedSnapshot["7295"] = String(lt.close);
+      if (lt.high) formattedSnapshot["6"] = String(lt.high);
+      if (lt.low) formattedSnapshot["7"] = String(lt.low);
+      if (lt.open) formattedSnapshot["14"] = String(lt.open);
+      if (lt.bid) formattedSnapshot["1"] = String(lt.bid);
+      if (lt.ask) formattedSnapshot["2"] = String(lt.ask);
+      if (lt.volume) formattedSnapshot["7308"] = String(lt.volume);
+    }
+
+    return NextResponse.json(formattedSnapshot);
   } catch (error) {
-    console.error(`❌ [API] Unexpected error for ${request.url}:`, error);
+    console.error(`[Market Data API] Error for ${symbol}:`, error);
     const errorMessage = error instanceof Error ? error.message : "Failed to fetch market data";
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
-        suggestion: "Please check IB Gateway is running and accessible at https://localhost:5000"
+        suggestion:
+          "Ensure MarketDataHub is initialized and streaming is active. Streaming subscription will be established automatically.",
       },
       { status: 500 }
     );

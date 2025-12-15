@@ -1,11 +1,11 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * Symbol Scoring System - Convex Functions
- * 
+ *
  * This file handles storage and retrieval of scoring data in Convex.
- * 
+ *
  * Weights and formulas are stored in the code (rulebooks/),
  * but the actual scores (variable data) are stored here.
  */
@@ -257,7 +257,7 @@ export const getRecentlyUpdatedScores = query({
     since: v.optional(v.number()), // Only return scores updated after this timestamp
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("symbolScores").withIndex("by_last_updated");
+    const query = ctx.db.query("symbolScores").withIndex("by_last_updated");
 
     const allScores = await query.order("desc").collect();
 
@@ -341,4 +341,3 @@ export const hasSymbolScores = query({
     return score !== null;
   },
 });
-

@@ -37,4 +37,3 @@ export interface StopLevels {
   initial: number;
   trailing?: number; // Latest trailing target (if exists)
 }
-

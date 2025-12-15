@@ -36,13 +36,7 @@ export interface CandlePatternResult {
   match: boolean;
   strength: CandleStrength;
   direction: "LONG" | "SHORT" | "NEUTRAL";
-  category:
-    | "REVERSAL"
-    | "CONTINUATION"
-    | "INDECISION"
-    | "CONFIRMATION"
-    | "STOP_CANDLES"
-    | "OTHER";
+  category: "REVERSAL" | "CONTINUATION" | "INDECISION" | "CONFIRMATION" | "STOP_CANDLES" | "OTHER";
   metrics: CandleMetrics;
   notes?: string; // optional human-readable description
 }
@@ -68,25 +62,24 @@ export interface PatternContext {
  * Compute basic CandleMetrics from OHLCV
  * This helper is reused by ALL pattern functions
  */
-export function computeCandleMetrics(
-  candle: CandleInput,
-  context?: PatternContext
-): CandleMetrics {
+export function computeCandleMetrics(candle: CandleInput, context?: PatternContext): CandleMetrics {
   const bodySize = Math.abs(candle.close - candle.open);
   const totalRange = candle.high - candle.low;
-  
+
   // Upper wick: distance from body top to high
   const bodyTop = Math.max(candle.open, candle.close);
   const upperWick = Math.max(0, candle.high - bodyTop);
-  
+
   // Lower wick: distance from body bottom to low
   const bodyBottom = Math.min(candle.open, candle.close);
   const lowerWick = Math.max(0, bodyBottom - candle.low);
 
   // Ratios
   const bodyRatio = totalRange > 0 ? bodySize / totalRange : 0;
-  const upperWickRatio = bodySize > 0 ? upperWick / bodySize : (totalRange > 0 ? upperWick / totalRange : 0);
-  const lowerWickRatio = bodySize > 0 ? lowerWick / bodySize : (totalRange > 0 ? lowerWick / totalRange : 0);
+  const upperWickRatio =
+    bodySize > 0 ? upperWick / bodySize : totalRange > 0 ? upperWick / totalRange : 0;
+  const lowerWickRatio =
+    bodySize > 0 ? lowerWick / bodySize : totalRange > 0 ? lowerWick / totalRange : 0;
 
   return {
     bodySize,
@@ -134,19 +127,16 @@ function determineStrength(
  * Hammer Pattern Detection
  * Category: REVERSAL
  * Direction: LONG
- * 
+ *
  * Rules:
  * - Small body at upper end of range
  * - Lower wick at least 2x body size
  * - Upper wick minimal (less than body size)
  * - Best after downtrend
  */
-export function isHammer(
-  candle: CandleInput,
-  context?: PatternContext
-): CandlePatternResult {
+export function isHammer(candle: CandleInput, context?: PatternContext): CandlePatternResult {
   const metrics = computeCandleMetrics(candle, context);
-  
+
   // Invalid candle
   if (metrics.totalRange <= 0) {
     return {
@@ -182,11 +172,11 @@ export function isHammer(
 
   // Strength determination
   let strength: CandleStrength = "weak";
-  
+
   // Strong: lower wick 3x+ body, body < 20%, upper wick < 0.5x body, after downtrend
   if (
     lowerWickRatio >= 3.0 &&
-    bodyRatio < 0.20 &&
+    bodyRatio < 0.2 &&
     upperWickRatio < 0.5 &&
     context?.trend === "down"
   ) {
@@ -201,9 +191,10 @@ export function isHammer(
     strength = "weak";
   }
 
-  const notes = context?.trend === "down"
-    ? "Hammer after downtrend with strong lower wick"
-    : "Hammer pattern detected";
+  const notes =
+    context?.trend === "down"
+      ? "Hammer after downtrend with strong lower wick"
+      : "Hammer pattern detected";
 
   return {
     pattern: "Hammer",
@@ -220,7 +211,7 @@ export function isHammer(
  * Inverted Hammer Pattern Detection
  * Category: REVERSAL
  * Direction: LONG (potential reversal after downtrend)
- * 
+ *
  * Rules:
  * - Small body at lower end of range
  * - Upper wick at least 2x body size
@@ -264,7 +255,12 @@ export function isInvertedHammer(
   }
 
   let strength: CandleStrength = "weak";
-  if (upperWickRatio >= 3.0 && bodyRatio < 0.20 && lowerWickRatio < 0.5 && context?.trend === "down") {
+  if (
+    upperWickRatio >= 3.0 &&
+    bodyRatio < 0.2 &&
+    lowerWickRatio < 0.5 &&
+    context?.trend === "down"
+  ) {
     strength = "strong";
   } else if (upperWickRatio >= 2.5 && bodyRatio < 0.25 && lowerWickRatio < 0.7) {
     strength = "medium";
@@ -279,7 +275,8 @@ export function isInvertedHammer(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Inverted hammer after downtrend" : "Inverted hammer pattern",
+    notes:
+      context?.trend === "down" ? "Inverted hammer after downtrend" : "Inverted hammer pattern",
   };
 }
 
@@ -287,17 +284,14 @@ export function isInvertedHammer(
  * Shooting Star Pattern Detection
  * Category: REVERSAL
  * Direction: SHORT
- * 
+ *
  * Rules:
  * - Small body at lower end of range
  * - Upper wick at least 2x body size
  * - Lower wick minimal
  * - Best after uptrend
  */
-export function isShootingStar(
-  candle: CandleInput,
-  context?: PatternContext
-): CandlePatternResult {
+export function isShootingStar(candle: CandleInput, context?: PatternContext): CandlePatternResult {
   const metrics = computeCandleMetrics(candle, context);
 
   if (metrics.totalRange <= 0) {
@@ -331,7 +325,7 @@ export function isShootingStar(
   }
 
   let strength: CandleStrength = "weak";
-  if (upperWickRatio >= 3.0 && bodyRatio < 0.20 && lowerWickRatio < 0.5 && context?.trend === "up") {
+  if (upperWickRatio >= 3.0 && bodyRatio < 0.2 && lowerWickRatio < 0.5 && context?.trend === "up") {
     strength = "strong";
   } else if (upperWickRatio >= 2.5 && bodyRatio < 0.25 && lowerWickRatio < 0.7) {
     strength = "medium";
@@ -354,15 +348,12 @@ export function isShootingStar(
  * Doji Pattern Detection
  * Category: INDECISION
  * Direction: NEUTRAL
- * 
+ *
  * Rules:
  * - Body very small (less than 5% of range)
  * - Open and close nearly equal
  */
-export function isDoji(
-  candle: CandleInput,
-  context?: PatternContext
-): CandlePatternResult {
+export function isDoji(candle: CandleInput, context?: PatternContext): CandlePatternResult {
   const metrics = computeCandleMetrics(candle, context);
 
   if (metrics.totalRange <= 0) {
@@ -417,7 +408,7 @@ export function isDoji(
  * Long-Legged Doji Pattern Detection
  * Category: INDECISION
  * Direction: NEUTRAL
- * 
+ *
  * Rules:
  * - Very small body (doji-like)
  * - Both upper and lower wicks are long (at least 2x body each)
@@ -482,7 +473,7 @@ export function isLongLeggedDoji(
  * Dragonfly Doji Pattern Detection
  * Category: REVERSAL (potentially bullish)
  * Direction: LONG
- * 
+ *
  * Rules:
  * - Very small body at top of range
  * - Long lower wick (at least 2x total range)
@@ -513,7 +504,7 @@ export function isDragonflyDoji(
 
   const isSmallBody = bodyRatio < 0.05;
   const hasLongLowerWick = lowerWickToRange >= 0.66; // Lower wick at least 66% of range
-  const hasMinimalUpperWick = upperWickToRange < 0.10; // Upper wick less than 10% of range
+  const hasMinimalUpperWick = upperWickToRange < 0.1; // Upper wick less than 10% of range
 
   const baseMatch = isSmallBody && hasLongLowerWick && hasMinimalUpperWick;
 
@@ -529,9 +520,14 @@ export function isDragonflyDoji(
   }
 
   let strength: CandleStrength = "weak";
-  if (bodyRatio < 0.01 && lowerWickToRange >= 0.75 && upperWickToRange < 0.05 && context?.trend === "down") {
+  if (
+    bodyRatio < 0.01 &&
+    lowerWickToRange >= 0.75 &&
+    upperWickToRange < 0.05 &&
+    context?.trend === "down"
+  ) {
     strength = "strong";
-  } else if (bodyRatio < 0.03 && lowerWickToRange >= 0.70 && upperWickToRange < 0.08) {
+  } else if (bodyRatio < 0.03 && lowerWickToRange >= 0.7 && upperWickToRange < 0.08) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -544,7 +540,10 @@ export function isDragonflyDoji(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Dragonfly doji after downtrend - bullish reversal signal" : "Dragonfly doji pattern",
+    notes:
+      context?.trend === "down"
+        ? "Dragonfly doji after downtrend - bullish reversal signal"
+        : "Dragonfly doji pattern",
   };
 }
 
@@ -552,7 +551,7 @@ export function isDragonflyDoji(
  * Gravestone Doji Pattern Detection
  * Category: REVERSAL (potentially bearish)
  * Direction: SHORT
- * 
+ *
  * Rules:
  * - Very small body at bottom of range
  * - Long upper wick (at least 2x total range)
@@ -582,7 +581,7 @@ export function isGravestoneDoji(
 
   const isSmallBody = bodyRatio < 0.05;
   const hasLongUpperWick = upperWickToRange >= 0.66;
-  const hasMinimalLowerWick = lowerWickToRange < 0.10;
+  const hasMinimalLowerWick = lowerWickToRange < 0.1;
 
   const baseMatch = isSmallBody && hasLongUpperWick && hasMinimalLowerWick;
 
@@ -598,9 +597,14 @@ export function isGravestoneDoji(
   }
 
   let strength: CandleStrength = "weak";
-  if (bodyRatio < 0.01 && upperWickToRange >= 0.75 && lowerWickToRange < 0.05 && context?.trend === "up") {
+  if (
+    bodyRatio < 0.01 &&
+    upperWickToRange >= 0.75 &&
+    lowerWickToRange < 0.05 &&
+    context?.trend === "up"
+  ) {
     strength = "strong";
-  } else if (bodyRatio < 0.03 && upperWickToRange >= 0.70 && lowerWickToRange < 0.08) {
+  } else if (bodyRatio < 0.03 && upperWickToRange >= 0.7 && lowerWickToRange < 0.08) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -613,7 +617,10 @@ export function isGravestoneDoji(
     direction: "SHORT",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "up" ? "Gravestone doji after uptrend - bearish reversal signal" : "Gravestone doji pattern",
+    notes:
+      context?.trend === "up"
+        ? "Gravestone doji after uptrend - bearish reversal signal"
+        : "Gravestone doji pattern",
   };
 }
 
@@ -624,7 +631,7 @@ export function isGravestoneDoji(
 /**
  * Detect all patterns that match for a given candle
  * Returns array of all CandlePatternResult where match === true
- * 
+ *
  * Note: This function only checks single-candle patterns.
  * For multi-candle patterns (Engulfing, Morning Star, etc.),
  * call those functions directly with the required candles.
@@ -773,7 +780,8 @@ export function isBullishEngulfing(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Bullish engulfing after downtrend" : "Bullish engulfing pattern",
+    notes:
+      context?.trend === "down" ? "Bullish engulfing after downtrend" : "Bullish engulfing pattern",
   };
 }
 
@@ -839,7 +847,8 @@ export function isBearishEngulfing(
     direction: "SHORT",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "up" ? "Bearish engulfing after uptrend" : "Bearish engulfing pattern",
+    notes:
+      context?.trend === "up" ? "Bearish engulfing after uptrend" : "Bearish engulfing pattern",
   };
 }
 
@@ -899,7 +908,7 @@ export function isMorningStar(
 
   if (secondBodyVerySmall && thirdStrong && context?.trend === "down") {
     strength = "strong";
-  } else if (secondMetrics.bodyRatio < 0.25 && metrics.bodyRatio > 0.50) {
+  } else if (secondMetrics.bodyRatio < 0.25 && metrics.bodyRatio > 0.5) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -969,7 +978,7 @@ export function isEveningStar(
 
   if (secondBodyVerySmall && thirdStrong && context?.trend === "up") {
     strength = "strong";
-  } else if (secondMetrics.bodyRatio < 0.25 && metrics.bodyRatio > 0.50) {
+  } else if (secondMetrics.bodyRatio < 0.25 && metrics.bodyRatio > 0.5) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -1012,7 +1021,7 @@ export function isPiercingPattern(
 
   const prevIsBearish = previousCandle.close < previousCandle.open;
   const currentIsBullish = candle.close > candle.open;
-  
+
   // Opens below previous close
   const opensBelow = candle.open < previousCandle.close;
   // Closes above midpoint of previous body
@@ -1021,7 +1030,8 @@ export function isPiercingPattern(
   // But doesn't close above previous open
   const doesntCloseAboveOpen = candle.close < previousCandle.open;
 
-  const baseMatch = prevIsBearish && currentIsBullish && opensBelow && closesAboveMidpoint && doesntCloseAboveOpen;
+  const baseMatch =
+    prevIsBearish && currentIsBullish && opensBelow && closesAboveMidpoint && doesntCloseAboveOpen;
 
   if (!baseMatch) {
     return {
@@ -1088,7 +1098,8 @@ export function isDarkCloudCover(
   const closesBelowMidpoint = candle.close < prevMidpoint;
   const doesntCloseBelowOpen = candle.close > previousCandle.open;
 
-  const baseMatch = prevIsBullish && currentIsBearish && opensAbove && closesBelowMidpoint && doesntCloseBelowOpen;
+  const baseMatch =
+    prevIsBullish && currentIsBearish && opensAbove && closesBelowMidpoint && doesntCloseBelowOpen;
 
   if (!baseMatch) {
     return {
@@ -1262,7 +1273,7 @@ export function isBearishHarami(
  * Bullish Marubozu Pattern Detection
  * Category: CONTINUATION or REVERSAL
  * Direction: LONG
- * 
+ *
  * Rules:
  * - No wicks (or very minimal)
  * - Strong bullish body
@@ -1286,7 +1297,7 @@ export function isBullishMarubozu(
 
   const isBullish = candle.close > candle.open;
   const minimalWicks = metrics.upperWickRatio < 0.05 && metrics.lowerWickRatio < 0.05;
-  const strongBody = metrics.bodyRatio > 0.90;
+  const strongBody = metrics.bodyRatio > 0.9;
 
   const baseMatch = isBullish && minimalWicks && strongBody;
 
@@ -1345,7 +1356,7 @@ export function isBearishMarubozu(
 
   const isBearish = candle.close < candle.open;
   const minimalWicks = metrics.upperWickRatio < 0.05 && metrics.lowerWickRatio < 0.05;
-  const strongBody = metrics.bodyRatio > 0.90;
+  const strongBody = metrics.bodyRatio > 0.9;
 
   const baseMatch = isBearish && minimalWicks && strongBody;
 
@@ -1384,15 +1395,12 @@ export function isBearishMarubozu(
  * Spinning Top Pattern Detection
  * Category: INDECISION
  * Direction: NEUTRAL
- * 
+ *
  * Rules:
  * - Small body
  * - Long wicks on both sides
  */
-export function isSpinningTop(
-  candle: CandleInput,
-  context?: PatternContext
-): CandlePatternResult {
+export function isSpinningTop(candle: CandleInput, context?: PatternContext): CandlePatternResult {
   const metrics = computeCandleMetrics(candle, context);
 
   if (metrics.totalRange <= 0) {
@@ -1424,9 +1432,13 @@ export function isSpinningTop(
   }
 
   let strength: CandleStrength = "weak";
-  if (metrics.bodyRatio < 0.20 && metrics.upperWickRatio >= 2.0 && metrics.lowerWickRatio >= 2.0) {
+  if (metrics.bodyRatio < 0.2 && metrics.upperWickRatio >= 2.0 && metrics.lowerWickRatio >= 2.0) {
     strength = "strong";
-  } else if (metrics.bodyRatio < 0.25 && metrics.upperWickRatio >= 1.75 && metrics.lowerWickRatio >= 1.75) {
+  } else if (
+    metrics.bodyRatio < 0.25 &&
+    metrics.upperWickRatio >= 1.75 &&
+    metrics.lowerWickRatio >= 1.75
+  ) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -1548,7 +1560,8 @@ export function isOutsideBar(
     };
   }
 
-  const direction: "LONG" | "SHORT" | "NEUTRAL" = candle.close > candle.open ? "LONG" : candle.close < candle.open ? "SHORT" : "NEUTRAL";
+  const direction: "LONG" | "SHORT" | "NEUTRAL" =
+    candle.close > candle.open ? "LONG" : candle.close < candle.open ? "SHORT" : "NEUTRAL";
   const category = direction === "NEUTRAL" ? "INDECISION" : "REVERSAL";
 
   const rangeRatio = metrics.totalRange / (previousCandle.high - previousCandle.low);
@@ -1577,7 +1590,7 @@ export function isOutsideBar(
  * Bullish Pin Bar Pattern Detection
  * Category: REVERSAL
  * Direction: LONG
- * 
+ *
  * Rules:
  * - Small body
  * - Very long lower wick
@@ -1600,7 +1613,7 @@ export function isBullishPinBar(
     };
   }
 
-  const smallBody = metrics.bodyRatio < 0.40;
+  const smallBody = metrics.bodyRatio < 0.4;
   const longLowerWick = metrics.lowerWickRatio >= 2.5;
   const minimalUpperWick = metrics.upperWickRatio < 0.5;
 
@@ -1620,9 +1633,9 @@ export function isBullishPinBar(
   const lowerWickToRange = metrics.lowerWick / metrics.totalRange;
 
   let strength: CandleStrength = "weak";
-  if (lowerWickToRange >= 0.70 && metrics.bodyRatio < 0.25 && context?.trend === "down") {
+  if (lowerWickToRange >= 0.7 && metrics.bodyRatio < 0.25 && context?.trend === "down") {
     strength = "strong";
-  } else if (lowerWickToRange >= 0.60 && metrics.bodyRatio < 0.33) {
+  } else if (lowerWickToRange >= 0.6 && metrics.bodyRatio < 0.33) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -1635,7 +1648,8 @@ export function isBullishPinBar(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Bullish pin bar after downtrend" : "Bullish pin bar pattern",
+    notes:
+      context?.trend === "down" ? "Bullish pin bar after downtrend" : "Bullish pin bar pattern",
   };
 }
 
@@ -1661,7 +1675,7 @@ export function isBearishPinBar(
     };
   }
 
-  const smallBody = metrics.bodyRatio < 0.40;
+  const smallBody = metrics.bodyRatio < 0.4;
   const longUpperWick = metrics.upperWickRatio >= 2.5;
   const minimalLowerWick = metrics.lowerWickRatio < 0.5;
 
@@ -1681,9 +1695,9 @@ export function isBearishPinBar(
   const upperWickToRange = metrics.upperWick / metrics.totalRange;
 
   let strength: CandleStrength = "weak";
-  if (upperWickToRange >= 0.70 && metrics.bodyRatio < 0.25 && context?.trend === "up") {
+  if (upperWickToRange >= 0.7 && metrics.bodyRatio < 0.25 && context?.trend === "up") {
     strength = "strong";
-  } else if (upperWickToRange >= 0.60 && metrics.bodyRatio < 0.33) {
+  } else if (upperWickToRange >= 0.6 && metrics.bodyRatio < 0.33) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -1704,7 +1718,7 @@ export function isBearishPinBar(
  * High Wave Candle Pattern Detection
  * Category: INDECISION
  * Direction: NEUTRAL
- * 
+ *
  * Rules:
  * - Small body
  * - Long wicks on both sides (at least 1.5x body each)
@@ -1726,7 +1740,7 @@ export function isHighWaveCandle(
     };
   }
 
-  const smallBody = metrics.bodyRatio < 0.40;
+  const smallBody = metrics.bodyRatio < 0.4;
   const longUpperWick = metrics.upperWickRatio >= 1.5;
   const longLowerWick = metrics.lowerWickRatio >= 1.5;
 
@@ -1746,7 +1760,11 @@ export function isHighWaveCandle(
   let strength: CandleStrength = "weak";
   if (metrics.bodyRatio < 0.25 && metrics.upperWickRatio >= 2.5 && metrics.lowerWickRatio >= 2.5) {
     strength = "strong";
-  } else if (metrics.bodyRatio < 0.30 && metrics.upperWickRatio >= 2.0 && metrics.lowerWickRatio >= 2.0) {
+  } else if (
+    metrics.bodyRatio < 0.3 &&
+    metrics.upperWickRatio >= 2.0 &&
+    metrics.lowerWickRatio >= 2.0
+  ) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -1807,7 +1825,7 @@ export function isBullishKicker(
   }
 
   const gapSize = (candle.open - previousCandle.close) / previousCandle.close;
-  const strongBody = metrics.bodyRatio > 0.70;
+  const strongBody = metrics.bodyRatio > 0.7;
 
   let strength: CandleStrength = "weak";
   if (gapSize > 0.02 && strongBody && context?.trend === "down") {
@@ -1872,7 +1890,7 @@ export function isBearishKicker(
   }
 
   const gapSize = (previousCandle.close - candle.open) / previousCandle.close;
-  const strongBody = metrics.bodyRatio > 0.70;
+  const strongBody = metrics.bodyRatio > 0.7;
 
   let strength: CandleStrength = "weak";
   if (gapSize > 0.02 && strongBody && context?.trend === "up") {
@@ -1924,9 +1942,9 @@ export function isThreeWhiteSoldiers(
     first.close > first.open && second.close > second.open && third.close > third.open;
 
   const allStrongBodies =
-    computeCandleMetrics(first).bodyRatio > 0.60 &&
-    computeCandleMetrics(second).bodyRatio > 0.60 &&
-    metrics.bodyRatio > 0.60;
+    computeCandleMetrics(first).bodyRatio > 0.6 &&
+    computeCandleMetrics(second).bodyRatio > 0.6 &&
+    metrics.bodyRatio > 0.6;
 
   const consecutiveHigher = second.close > first.close && third.close > second.close;
 
@@ -1944,7 +1962,11 @@ export function isThreeWhiteSoldiers(
   }
 
   let strength: CandleStrength = "weak";
-  const avgBodyRatio = (computeCandleMetrics(first).bodyRatio + computeCandleMetrics(second).bodyRatio + metrics.bodyRatio) / 3;
+  const avgBodyRatio =
+    (computeCandleMetrics(first).bodyRatio +
+      computeCandleMetrics(second).bodyRatio +
+      metrics.bodyRatio) /
+    3;
 
   if (avgBodyRatio > 0.75 && context?.trend === "up") {
     strength = "strong";
@@ -1961,7 +1983,10 @@ export function isThreeWhiteSoldiers(
     direction: "LONG",
     category: "CONTINUATION",
     metrics,
-    notes: context?.trend === "up" ? "Three white soldiers - strong bullish continuation" : "Three white soldiers pattern",
+    notes:
+      context?.trend === "up"
+        ? "Three white soldiers - strong bullish continuation"
+        : "Three white soldiers pattern",
   };
 }
 
@@ -1995,9 +2020,9 @@ export function isThreeBlackCrows(
     first.close < first.open && second.close < second.open && third.close < third.open;
 
   const allStrongBodies =
-    computeCandleMetrics(first).bodyRatio > 0.60 &&
-    computeCandleMetrics(second).bodyRatio > 0.60 &&
-    metrics.bodyRatio > 0.60;
+    computeCandleMetrics(first).bodyRatio > 0.6 &&
+    computeCandleMetrics(second).bodyRatio > 0.6 &&
+    metrics.bodyRatio > 0.6;
 
   const consecutiveLower = second.close < first.close && third.close < second.close;
 
@@ -2015,7 +2040,11 @@ export function isThreeBlackCrows(
   }
 
   let strength: CandleStrength = "weak";
-  const avgBodyRatio = (computeCandleMetrics(first).bodyRatio + computeCandleMetrics(second).bodyRatio + metrics.bodyRatio) / 3;
+  const avgBodyRatio =
+    (computeCandleMetrics(first).bodyRatio +
+      computeCandleMetrics(second).bodyRatio +
+      metrics.bodyRatio) /
+    3;
 
   if (avgBodyRatio > 0.75 && context?.trend === "down") {
     strength = "strong";
@@ -2032,7 +2061,10 @@ export function isThreeBlackCrows(
     direction: "SHORT",
     category: "CONTINUATION",
     metrics,
-    notes: context?.trend === "down" ? "Three black crows - strong bearish continuation" : "Three black crows pattern",
+    notes:
+      context?.trend === "down"
+        ? "Three black crows - strong bearish continuation"
+        : "Three black crows pattern",
   };
 }
 
@@ -2061,7 +2093,8 @@ export function isTweezerTop(
   }
 
   // Both candles reach similar highs
-  const highDifference = Math.abs(candle.high - previousCandle.high) / Math.max(candle.high, previousCandle.high);
+  const highDifference =
+    Math.abs(candle.high - previousCandle.high) / Math.max(candle.high, previousCandle.high);
   const similarHighs = highDifference < 0.002; // Within 0.2%
 
   const baseMatch = similarHighs;
@@ -2093,7 +2126,10 @@ export function isTweezerTop(
     direction: "SHORT",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "up" ? "Tweezer top after uptrend - resistance rejection" : "Tweezer top pattern",
+    notes:
+      context?.trend === "up"
+        ? "Tweezer top after uptrend - resistance rejection"
+        : "Tweezer top pattern",
   };
 }
 
@@ -2121,7 +2157,8 @@ export function isTweezerBottom(
     };
   }
 
-  const lowDifference = Math.abs(candle.low - previousCandle.low) / Math.max(candle.low, previousCandle.low);
+  const lowDifference =
+    Math.abs(candle.low - previousCandle.low) / Math.max(candle.low, previousCandle.low);
   const similarLows = lowDifference < 0.002;
 
   const baseMatch = similarLows;
@@ -2153,7 +2190,10 @@ export function isTweezerBottom(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Tweezer bottom after downtrend - support bounce" : "Tweezer bottom pattern",
+    notes:
+      context?.trend === "down"
+        ? "Tweezer bottom after downtrend - support bounce"
+        : "Tweezer bottom pattern",
   };
 }
 
@@ -2161,7 +2201,7 @@ export function isTweezerBottom(
  * Bullish Belt Hold Pattern Detection
  * Category: CONTINUATION or REVERSAL
  * Direction: LONG
- * 
+ *
  * Rules:
  * - Opens at low, closes near high
  * - Long bullish body with minimal upper wick
@@ -2185,7 +2225,7 @@ export function isBullishBeltHold(
 
   const isBullish = candle.close > candle.open;
   const opensAtLow = Math.abs(candle.open - candle.low) / metrics.totalRange < 0.05;
-  const closesNearHigh = Math.abs(candle.high - candle.close) / metrics.totalRange < 0.10;
+  const closesNearHigh = Math.abs(candle.high - candle.close) / metrics.totalRange < 0.1;
   const strongBody = metrics.bodyRatio > 0.75;
 
   const baseMatch = isBullish && opensAtLow && closesNearHigh && strongBody;
@@ -2204,7 +2244,7 @@ export function isBullishBeltHold(
   let strength: CandleStrength = "weak";
   if (metrics.bodyRatio > 0.85 && opensAtLow && closesNearHigh) {
     strength = "strong";
-  } else if (metrics.bodyRatio > 0.80) {
+  } else if (metrics.bodyRatio > 0.8) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2245,7 +2285,7 @@ export function isBearishBeltHold(
 
   const isBearish = candle.close < candle.open;
   const opensAtHigh = Math.abs(candle.high - candle.open) / metrics.totalRange < 0.05;
-  const closesNearLow = Math.abs(candle.close - candle.low) / metrics.totalRange < 0.10;
+  const closesNearLow = Math.abs(candle.close - candle.low) / metrics.totalRange < 0.1;
   const strongBody = metrics.bodyRatio > 0.75;
 
   const baseMatch = isBearish && opensAtHigh && closesNearLow && strongBody;
@@ -2264,7 +2304,7 @@ export function isBearishBeltHold(
   let strength: CandleStrength = "weak";
   if (metrics.bodyRatio > 0.85 && opensAtHigh && closesNearLow) {
     strength = "strong";
-  } else if (metrics.bodyRatio > 0.80) {
+  } else if (metrics.bodyRatio > 0.8) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2306,7 +2346,7 @@ export function isBullishHammerLike(
 
   const { bodyRatio, lowerWickRatio, upperWickRatio } = metrics;
 
-  const hasSmallBody = bodyRatio < 0.40;
+  const hasSmallBody = bodyRatio < 0.4;
   const hasLongLowerWick = lowerWickRatio >= 1.5; // More flexible than hammer
   const hasMinimalUpperWick = upperWickRatio < 1.2;
 
@@ -2326,7 +2366,7 @@ export function isBullishHammerLike(
   let strength: CandleStrength = "weak";
   if (lowerWickRatio >= 2.5 && bodyRatio < 0.25 && context?.trend === "down") {
     strength = "strong";
-  } else if (lowerWickRatio >= 2.0 && bodyRatio < 0.30) {
+  } else if (lowerWickRatio >= 2.0 && bodyRatio < 0.3) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2339,7 +2379,10 @@ export function isBullishHammerLike(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Bullish hammer-like after downtrend" : "Bullish hammer-like pattern",
+    notes:
+      context?.trend === "down"
+        ? "Bullish hammer-like after downtrend"
+        : "Bullish hammer-like pattern",
   };
 }
 
@@ -2368,7 +2411,7 @@ export function isBearishShootingStarLike(
 
   const { bodyRatio, lowerWickRatio, upperWickRatio } = metrics;
 
-  const hasSmallBody = bodyRatio < 0.40;
+  const hasSmallBody = bodyRatio < 0.4;
   const hasLongUpperWick = upperWickRatio >= 1.5;
   const hasMinimalLowerWick = lowerWickRatio < 1.2;
 
@@ -2388,7 +2431,7 @@ export function isBearishShootingStarLike(
   let strength: CandleStrength = "weak";
   if (upperWickRatio >= 2.5 && bodyRatio < 0.25 && context?.trend === "up") {
     strength = "strong";
-  } else if (upperWickRatio >= 2.0 && bodyRatio < 0.30) {
+  } else if (upperWickRatio >= 2.0 && bodyRatio < 0.3) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2401,7 +2444,10 @@ export function isBearishShootingStarLike(
     direction: "SHORT",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "up" ? "Bearish shooting star-like after uptrend" : "Bearish shooting star-like pattern",
+    notes:
+      context?.trend === "up"
+        ? "Bearish shooting star-like after uptrend"
+        : "Bearish shooting star-like pattern",
   };
 }
 
@@ -2411,10 +2457,7 @@ export function isBearishShootingStarLike(
  * Direction: SHORT
  * Similar to hammer but appears after uptrend
  */
-export function isHangingMan(
-  candle: CandleInput,
-  context?: PatternContext
-): CandlePatternResult {
+export function isHangingMan(candle: CandleInput, context?: PatternContext): CandlePatternResult {
   // Same structure as hammer but different context expectations
   const hammerResult = isHammer(candle, context);
 
@@ -2430,7 +2473,8 @@ export function isHangingMan(
   }
 
   // Hanging man is stronger after uptrend
-  const strength: CandleStrength = context?.trend === "up" ? "strong" : context?.trend === "down" ? "weak" : hammerResult.strength;
+  const strength: CandleStrength =
+    context?.trend === "up" ? "strong" : context?.trend === "down" ? "weak" : hammerResult.strength;
 
   return {
     pattern: "HangingMan",
@@ -2439,7 +2483,10 @@ export function isHangingMan(
     direction: "SHORT",
     category: "REVERSAL",
     metrics: hammerResult.metrics,
-    notes: context?.trend === "up" ? "Hanging man after uptrend - bearish reversal signal" : "Hanging man pattern",
+    notes:
+      context?.trend === "up"
+        ? "Hanging man after uptrend - bearish reversal signal"
+        : "Hanging man pattern",
   };
 }
 
@@ -2482,7 +2529,12 @@ export function isBullishHaramiCross(
   }
 
   // Harami cross is typically stronger than regular harami
-  const strength: CandleStrength = haramiResult.strength === "strong" ? "strong" : haramiResult.strength === "medium" ? "medium" : "weak";
+  const strength: CandleStrength =
+    haramiResult.strength === "strong"
+      ? "strong"
+      : haramiResult.strength === "medium"
+        ? "medium"
+        : "weak";
 
   return {
     pattern: "BullishHaramiCross",
@@ -2491,7 +2543,10 @@ export function isBullishHaramiCross(
     direction: "LONG",
     category: "REVERSAL",
     metrics: haramiResult.metrics,
-    notes: context?.trend === "down" ? "Bullish harami cross after downtrend" : "Bullish harami cross pattern",
+    notes:
+      context?.trend === "down"
+        ? "Bullish harami cross after downtrend"
+        : "Bullish harami cross pattern",
   };
 }
 
@@ -2533,7 +2588,12 @@ export function isBearishHaramiCross(
     };
   }
 
-  const strength: CandleStrength = haramiResult.strength === "strong" ? "strong" : haramiResult.strength === "medium" ? "medium" : "weak";
+  const strength: CandleStrength =
+    haramiResult.strength === "strong"
+      ? "strong"
+      : haramiResult.strength === "medium"
+        ? "medium"
+        : "weak";
 
   return {
     pattern: "BearishHaramiCross",
@@ -2542,7 +2602,10 @@ export function isBearishHaramiCross(
     direction: "SHORT",
     category: "REVERSAL",
     metrics: haramiResult.metrics,
-    notes: context?.trend === "up" ? "Bearish harami cross after uptrend" : "Bearish harami cross pattern",
+    notes:
+      context?.trend === "up"
+        ? "Bearish harami cross after uptrend"
+        : "Bearish harami cross pattern",
   };
 }
 
@@ -2574,19 +2637,24 @@ export function isRisingThreeMethods(
 
   // First candle: strong bullish
   const firstBullish = first.close > first.open;
-  const firstStrong = computeCandleMetrics(first).bodyRatio > 0.60;
+  const firstStrong = computeCandleMetrics(first).bodyRatio > 0.6;
 
   // Three middle candles: small bearish or neutral, inside first candle's range
-  const middleInside = second.high < first.high && second.low > first.low &&
-                       third.high < first.high && third.low > first.low &&
-                       fourth.high < first.high && fourth.low > first.low;
+  const middleInside =
+    second.high < first.high &&
+    second.low > first.low &&
+    third.high < first.high &&
+    third.low > first.low &&
+    fourth.high < first.high &&
+    fourth.low > first.low;
 
   // Fifth candle: strong bullish, closes above first close
   const fifthBullish = fifth.close > fifth.open;
-  const fifthStrong = metrics.bodyRatio > 0.60;
+  const fifthStrong = metrics.bodyRatio > 0.6;
   const closesAbove = fifth.close > first.close;
 
-  const baseMatch = firstBullish && firstStrong && middleInside && fifthBullish && fifthStrong && closesAbove;
+  const baseMatch =
+    firstBullish && firstStrong && middleInside && fifthBullish && fifthStrong && closesAbove;
 
   if (!baseMatch) {
     return {
@@ -2615,7 +2683,10 @@ export function isRisingThreeMethods(
     direction: "LONG",
     category: "CONTINUATION",
     metrics,
-    notes: context?.trend === "up" ? "Rising three methods - bullish continuation" : "Rising three methods pattern",
+    notes:
+      context?.trend === "up"
+        ? "Rising three methods - bullish continuation"
+        : "Rising three methods pattern",
   };
 }
 
@@ -2646,17 +2717,22 @@ export function isFallingThreeMethods(
   const [first, second, third, fourth, fifth] = candles.slice(-5);
 
   const firstBearish = first.close < first.open;
-  const firstStrong = computeCandleMetrics(first).bodyRatio > 0.60;
+  const firstStrong = computeCandleMetrics(first).bodyRatio > 0.6;
 
-  const middleInside = second.high < first.high && second.low > first.low &&
-                       third.high < first.high && third.low > first.low &&
-                       fourth.high < first.high && fourth.low > first.low;
+  const middleInside =
+    second.high < first.high &&
+    second.low > first.low &&
+    third.high < first.high &&
+    third.low > first.low &&
+    fourth.high < first.high &&
+    fourth.low > first.low;
 
   const fifthBearish = fifth.close < fifth.open;
-  const fifthStrong = metrics.bodyRatio > 0.60;
+  const fifthStrong = metrics.bodyRatio > 0.6;
   const closesBelow = fifth.close < first.close;
 
-  const baseMatch = firstBearish && firstStrong && middleInside && fifthBearish && fifthStrong && closesBelow;
+  const baseMatch =
+    firstBearish && firstStrong && middleInside && fifthBearish && fifthStrong && closesBelow;
 
   if (!baseMatch) {
     return {
@@ -2685,7 +2761,10 @@ export function isFallingThreeMethods(
     direction: "SHORT",
     category: "CONTINUATION",
     metrics,
-    notes: context?.trend === "down" ? "Falling three methods - bearish continuation" : "Falling three methods pattern",
+    notes:
+      context?.trend === "down"
+        ? "Falling three methods - bearish continuation"
+        : "Falling three methods pattern",
   };
 }
 
@@ -2733,8 +2812,17 @@ export function isBullishBreakaway(
   const gapUp = fifth.open > fourth.close;
   const closesIntoFirst = fifth.close > first.open;
 
-  const baseMatch = firstBearish && secondBearish && thirdBearish && fourthBearish &&
-                    gap1 && gap2 && gap3 && fifthBullish && gapUp && closesIntoFirst;
+  const baseMatch =
+    firstBearish &&
+    secondBearish &&
+    thirdBearish &&
+    fourthBearish &&
+    gap1 &&
+    gap2 &&
+    gap3 &&
+    fifthBullish &&
+    gapUp &&
+    closesIntoFirst;
 
   if (!baseMatch) {
     return {
@@ -2748,9 +2836,9 @@ export function isBullishBreakaway(
   }
 
   let strength: CandleStrength = "weak";
-  if (metrics.bodyRatio > 0.70 && context?.trend === "down") {
+  if (metrics.bodyRatio > 0.7 && context?.trend === "down") {
     strength = "strong";
-  } else if (metrics.bodyRatio > 0.60) {
+  } else if (metrics.bodyRatio > 0.6) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2763,7 +2851,8 @@ export function isBullishBreakaway(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Bullish breakaway after downtrend" : "Bullish breakaway pattern",
+    notes:
+      context?.trend === "down" ? "Bullish breakaway after downtrend" : "Bullish breakaway pattern",
   };
 }
 
@@ -2806,8 +2895,17 @@ export function isBearishBreakaway(
   const gapDown = fifth.open < fourth.close;
   const closesIntoFirst = fifth.close < first.open;
 
-  const baseMatch = firstBullish && secondBullish && thirdBullish && fourthBullish &&
-                    gap1 && gap2 && gap3 && fifthBearish && gapDown && closesIntoFirst;
+  const baseMatch =
+    firstBullish &&
+    secondBullish &&
+    thirdBullish &&
+    fourthBullish &&
+    gap1 &&
+    gap2 &&
+    gap3 &&
+    fifthBearish &&
+    gapDown &&
+    closesIntoFirst;
 
   if (!baseMatch) {
     return {
@@ -2821,9 +2919,9 @@ export function isBearishBreakaway(
   }
 
   let strength: CandleStrength = "weak";
-  if (metrics.bodyRatio > 0.70 && context?.trend === "up") {
+  if (metrics.bodyRatio > 0.7 && context?.trend === "up") {
     strength = "strong";
-  } else if (metrics.bodyRatio > 0.60) {
+  } else if (metrics.bodyRatio > 0.6) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2836,7 +2934,8 @@ export function isBearishBreakaway(
     direction: "SHORT",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "up" ? "Bearish breakaway after uptrend" : "Bearish breakaway pattern",
+    notes:
+      context?.trend === "up" ? "Bearish breakaway after uptrend" : "Bearish breakaway pattern",
   };
 }
 
@@ -2889,9 +2988,9 @@ export function isAbandonedBabyTop(
   }
 
   let strength: CandleStrength = "weak";
-  if (secondMetrics.bodyRatio < 0.01 && metrics.bodyRatio > 0.60 && context?.trend === "up") {
+  if (secondMetrics.bodyRatio < 0.01 && metrics.bodyRatio > 0.6 && context?.trend === "up") {
     strength = "strong";
-  } else if (secondMetrics.bodyRatio < 0.03 && metrics.bodyRatio > 0.50) {
+  } else if (secondMetrics.bodyRatio < 0.03 && metrics.bodyRatio > 0.5) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2904,7 +3003,8 @@ export function isAbandonedBabyTop(
     direction: "SHORT",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "up" ? "Abandoned baby top after uptrend" : "Abandoned baby top pattern",
+    notes:
+      context?.trend === "up" ? "Abandoned baby top after uptrend" : "Abandoned baby top pattern",
   };
 }
 
@@ -2956,9 +3056,9 @@ export function isAbandonedBabyBottom(
   }
 
   let strength: CandleStrength = "weak";
-  if (secondMetrics.bodyRatio < 0.01 && metrics.bodyRatio > 0.60 && context?.trend === "down") {
+  if (secondMetrics.bodyRatio < 0.01 && metrics.bodyRatio > 0.6 && context?.trend === "down") {
     strength = "strong";
-  } else if (secondMetrics.bodyRatio < 0.03 && metrics.bodyRatio > 0.50) {
+  } else if (secondMetrics.bodyRatio < 0.03 && metrics.bodyRatio > 0.5) {
     strength = "medium";
   } else {
     strength = "weak";
@@ -2971,7 +3071,10 @@ export function isAbandonedBabyBottom(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Abandoned baby bottom after downtrend" : "Abandoned baby bottom pattern",
+    notes:
+      context?.trend === "down"
+        ? "Abandoned baby bottom after downtrend"
+        : "Abandoned baby bottom pattern",
   };
 }
 
@@ -3002,19 +3105,26 @@ export function isMatHold(
   const [first, second, third, fourth, fifth] = candles.slice(-5);
 
   const firstBullish = first.close > first.open;
-  const firstStrong = computeCandleMetrics(first).bodyRatio > 0.60;
+  const firstStrong = computeCandleMetrics(first).bodyRatio > 0.6;
 
   // Middle three: small bodies, mostly inside first range
-  const middleConsolidation = computeCandleMetrics(second).bodyRatio < 0.50 &&
-                              computeCandleMetrics(third).bodyRatio < 0.50 &&
-                              computeCandleMetrics(fourth).bodyRatio < 0.50;
+  const middleConsolidation =
+    computeCandleMetrics(second).bodyRatio < 0.5 &&
+    computeCandleMetrics(third).bodyRatio < 0.5 &&
+    computeCandleMetrics(fourth).bodyRatio < 0.5;
 
   // Fifth: strong bullish, closes above first close
   const fifthBullish = fifth.close > fifth.open;
-  const fifthStrong = metrics.bodyRatio > 0.60;
+  const fifthStrong = metrics.bodyRatio > 0.6;
   const closesAbove = fifth.close > first.close;
 
-  const baseMatch = firstBullish && firstStrong && middleConsolidation && fifthBullish && fifthStrong && closesAbove;
+  const baseMatch =
+    firstBullish &&
+    firstStrong &&
+    middleConsolidation &&
+    fifthBullish &&
+    fifthStrong &&
+    closesAbove;
 
   if (!baseMatch) {
     return {
@@ -3077,7 +3187,7 @@ export function isUniqueThreeRiverBottom(
 
   // First: long bearish
   const firstBearish = first.close < first.open;
-  const firstLong = firstMetrics.bodyRatio > 0.60;
+  const firstLong = firstMetrics.bodyRatio > 0.6;
 
   // Second: small body (doji or spinning top), new low
   const secondSmall = secondMetrics.bodyRatio < 0.33;
@@ -3085,10 +3195,17 @@ export function isUniqueThreeRiverBottom(
 
   // Third: small bullish, inside second
   const thirdBullish = third.close > third.open;
-  const thirdSmall = metrics.bodyRatio < 0.40;
+  const thirdSmall = metrics.bodyRatio < 0.4;
   const insideSecond = third.high < second.high && third.low > second.low;
 
-  const baseMatch = firstBearish && firstLong && secondSmall && newLow && thirdBullish && thirdSmall && insideSecond;
+  const baseMatch =
+    firstBearish &&
+    firstLong &&
+    secondSmall &&
+    newLow &&
+    thirdBullish &&
+    thirdSmall &&
+    insideSecond;
 
   if (!baseMatch) {
     return {
@@ -3102,7 +3219,7 @@ export function isUniqueThreeRiverBottom(
   }
 
   let strength: CandleStrength = "weak";
-  if (secondMetrics.bodyRatio < 0.15 && metrics.bodyRatio < 0.30 && context?.trend === "down") {
+  if (secondMetrics.bodyRatio < 0.15 && metrics.bodyRatio < 0.3 && context?.trend === "down") {
     strength = "strong";
   } else if (secondMetrics.bodyRatio < 0.25 && metrics.bodyRatio < 0.35) {
     strength = "medium";
@@ -3117,7 +3234,10 @@ export function isUniqueThreeRiverBottom(
     direction: "LONG",
     category: "REVERSAL",
     metrics,
-    notes: context?.trend === "down" ? "Unique three river bottom after downtrend" : "Unique three river bottom pattern",
+    notes:
+      context?.trend === "down"
+        ? "Unique three river bottom after downtrend"
+        : "Unique three river bottom pattern",
   };
 }
 
@@ -3152,5 +3272,3 @@ export function bestMatchingPattern(
     return best;
   }, allPatterns[0]);
 }
-
-

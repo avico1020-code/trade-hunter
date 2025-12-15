@@ -1,6 +1,7 @@
 // Global Market Data Manager - Manages real-time subscriptions
-import { getTwsClient } from "./twsClient.simple";
+
 import type { IbkrMarketDataSnapshot } from "@/lib/types/ibkr";
+import { getTwsClient } from "./twsClient.simple";
 
 interface Subscription {
   symbol: string;
@@ -60,7 +61,7 @@ class MarketDataManager {
       const sub = this.subscriptions.get(symbol);
       if (sub) {
         sub.listeners.delete(callback);
-        
+
         // If no more listeners, cancel the subscription
         if (sub.listeners.size === 0) {
           this.cancelStreaming(symbol, sub.reqId);
@@ -96,22 +97,18 @@ class MarketDataManager {
     try {
       // Subscribe to real-time updates using the TWS client
       // This will trigger callbacks for every price update
-      await this.client.subscribeMarketData(
-        symbol,
-        reqId,
-        (data: IbkrMarketDataSnapshot) => {
-          const subscription = this.subscriptions.get(symbol);
-          if (subscription) {
-            subscription.lastData = data;
-            
-            // Notify all listeners
-            subscription.listeners.forEach((callback) => {
-              callback(data);
-            });
-          }
+      await this.client.subscribeMarketData(symbol, reqId, (data: IbkrMarketDataSnapshot) => {
+        const subscription = this.subscriptions.get(symbol);
+        if (subscription) {
+          subscription.lastData = data;
+
+          // Notify all listeners
+          subscription.listeners.forEach((callback) => {
+            callback(data);
+          });
         }
-      );
-      
+      });
+
       console.log(`📡 [Market Data Manager] Streaming started for ${symbol}`);
     } catch (error) {
       console.error(`❌ [Market Data Manager] Failed to stream ${symbol}:`, error);
@@ -147,4 +144,3 @@ class MarketDataManager {
 
 // Export singleton instance
 export const marketDataManager = new MarketDataManager();
-

@@ -1,19 +1,19 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
+import { useAction, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AIChatPanel } from "@/components/main-screen/AIChatPanel";
+import { ClearFinvizCacheButton } from "@/components/news/ClearFinvizCacheButton";
 import { StrategyKitHeader } from "@/components/strategy-kit/StrategyKitHeader";
 import { Button } from "@/components/ui/button";
-import { ClearFinvizCacheButton } from "@/components/news/ClearFinvizCacheButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useUser } from "@clerk/nextjs";
 
 type NewsTab = "general" | "focused";
 

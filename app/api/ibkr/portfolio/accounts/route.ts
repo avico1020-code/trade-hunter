@@ -35,19 +35,24 @@ export async function GET() {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(`❌ [API] Failed to fetch portfolio accounts:`, errorMsg);
-      
+
       // Check if it's an authentication/connection error
-      if (errorMsg.includes("not connected") || errorMsg.includes("authenticated") || errorMsg.includes("ECONNREFUSED")) {
+      if (
+        errorMsg.includes("not connected") ||
+        errorMsg.includes("authenticated") ||
+        errorMsg.includes("ECONNREFUSED")
+      ) {
         return NextResponse.json(
           {
             error: "Failed to connect to IB Gateway Client Portal",
             details: errorMsg,
-            suggestion: "Please ensure IB Gateway is running, fully connected, and you can access https://localhost:5000"
+            suggestion:
+              "Please ensure IB Gateway is running, fully connected, and you can access https://localhost:5000",
           },
           { status: 503 }
         );
       }
-      
+
       return NextResponse.json(
         {
           error: "Failed to fetch portfolio accounts",
@@ -58,12 +63,13 @@ export async function GET() {
     }
   } catch (error) {
     console.error(`❌ [API] Unexpected error:`, error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch portfolio accounts";
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch portfolio accounts";
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
-        suggestion: "Please check IB Gateway is running and accessible at https://localhost:5000"
+        suggestion: "Please check IB Gateway is running and accessible at https://localhost:5000",
       },
       { status: 500 }
     );

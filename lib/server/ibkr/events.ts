@@ -1,23 +1,23 @@
 /**
  * IBKR Integration Layer - Event Bus
- * 
+ *
  * Event emitter for streaming data distribution
  */
 
 import { EventEmitter } from "events";
 import type {
+  ConnectionStateCallback,
+  ConnectionStatus,
   MarketTick,
   MarketTickCallback,
   Order,
   OrderUpdateCallback,
-  ConnectionStatus,
-  ConnectionStateCallback,
   UnsubscribeFn,
 } from "./types";
 
 /**
  * Central event bus for IBKR data streams
- * 
+ *
  * This allows multiple consumers to subscribe to the same data stream
  * without creating duplicate subscriptions to IBKR
  */
@@ -127,4 +127,3 @@ export class IbkrEventBus extends EventEmitter {
 export function getIbkrEventBus(): IbkrEventBus {
   return IbkrEventBus.getInstance();
 }
-

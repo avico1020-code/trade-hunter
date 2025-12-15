@@ -1,4 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * IBKR TWS Historical Data API Route
+ *
+ * NOTE: This route is for LONG-TERM historical data (days, weeks, months, years).
+ * This is NOT real-time intraday data and does NOT use MarketDataHub.
+ *
+ * For real-time intraday bars, use /api/market-data/bars (which uses MarketDataHub).
+ * For current quotes, use /api/market-data/tick (which uses MarketDataHub).
+ */
+
+import { type NextRequest, NextResponse } from "next/server";
 import { getHistoricalData } from "@/lib/ibkr/tws-client";
 
 export async function GET(req: NextRequest) {
@@ -24,4 +34,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

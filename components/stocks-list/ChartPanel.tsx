@@ -1,3 +1,13 @@
+"use client";
+
+/**
+ * ChartPanel - Stocks List Page
+ *
+ * מציג גרף TradingView מקצועי עם נרות בזמן אמת
+ * משולב עם רשימת המניות
+ */
+
+import { ChartPanel as TradingViewChart } from "@/components/chart/ChartPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ChartPanelProps {
@@ -11,23 +21,21 @@ interface ChartPanelProps {
 
 export function ChartPanel({ selectedStock }: ChartPanelProps) {
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader>
+    <Card className="h-full flex flex-col overflow-hidden">
+      <CardHeader className="pb-2">
         <CardTitle>גרף</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex items-center justify-center">
+      <CardContent className="flex-1 p-0 overflow-hidden flex flex-col">
         {selectedStock ? (
-          <div className="text-center space-y-2">
-            <p className="text-lg font-semibold">{selectedStock.symbol}</p>
-            <p className="text-sm text-muted-foreground">
-              גרף עבור {selectedStock.symbol} יוצג כאן
-            </p>
-            {/* Chart will be implemented later */}
+          <div className="w-full h-full flex-1 min-h-0">
+            <TradingViewChart key={selectedStock.symbol} symbol={selectedStock.symbol} />
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center">
-            בחר מניה מהרשימה כדי לראות את הגרף
-          </p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground text-center">
+              בחר מניה מהרשימה כדי לראות את הגרף
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

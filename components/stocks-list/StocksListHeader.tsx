@@ -1,6 +1,7 @@
 "use client";
 
 import { useClerk, useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import { ArrowRight, LogOut, Settings, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -8,12 +9,9 @@ import { createPortal } from "react-dom";
 import { AppLogo } from "@/components/AppLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-interface StocksListHeaderProps {
-  // No props needed - we get strategies from Convex
-}
+type StocksListHeaderProps = {};
 
 export function StocksListHeader({}: StocksListHeaderProps) {
   const router = useRouter();

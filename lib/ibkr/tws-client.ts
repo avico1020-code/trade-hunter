@@ -1,7 +1,7 @@
 // Interactive Brokers TWS Socket API Client
 // Connects to TWS/IB Gateway via Socket on port 4002 (Paper) or 7496 (Live)
 
-import { IBApi, EventName, Contract, SecType } from "@stoqey/ib";
+import { type Contract, EventName, IBApi, SecType } from "@stoqey/ib";
 
 // Configuration from environment or defaults
 const IB_HOST = process.env.IB_HOST || "127.0.0.1";
@@ -49,7 +49,7 @@ function setupEventListeners(api: IBApi) {
 
   api.on(EventName.error, (err: Error, code: number, reqId: number) => {
     console.error(`IB API Error [${code}] (reqId: ${reqId}):`, err.message);
-    
+
     // Handle connection errors
     if (code === 502 || code === 504) {
       isConnected = false;
@@ -163,17 +163,20 @@ export async function getContractId(symbol: string): Promise<number> {
       reject(new Error(`Timeout getting contract ID for ${symbol}`));
     }, 5000);
 
-    api.getContractDetails(contract).then((details) => {
-      clearTimeout(timeout);
-      if (details && details.length > 0) {
-        resolve(details[0].contract.conId!);
-      } else {
-        reject(new Error(`No contract found for symbol: ${symbol}`));
-      }
-    }).catch((error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
+    api
+      .getContractDetails(contract)
+      .then((details) => {
+        clearTimeout(timeout);
+        if (details && details.length > 0) {
+          resolve(details[0].contract.conId!);
+        } else {
+          reject(new Error(`No contract found for symbol: ${symbol}`));
+        }
+      })
+      .catch((error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
   });
 }
 
@@ -202,7 +205,7 @@ export async function getMarketData(symbol: string): Promise<{
       reject(new Error(`Timeout getting market data for ${symbol}`));
     }, 10000);
 
-    let marketData: any = {
+    const marketData: any = {
       symbol,
       price: 0,
       change: 0,
@@ -222,11 +225,7 @@ export async function getMarketData(symbol: string): Promise<{
     const reqId = Math.floor(Math.random() * 10000);
 
     // Listen for ticker updates
-    const tickerHandler = (
-      tickerId: number,
-      field: number,
-      value: number | string
-    ) => {
+    const tickerHandler = (tickerId: number, field: number, value: number | string) => {
       if (tickerId !== reqId) return;
 
       dataReceived = true;
@@ -267,7 +266,7 @@ export async function getMarketData(symbol: string): Promise<{
     setTimeout(() => {
       if (dataReceived) {
         clearTimeout(timeout);
-        
+
         // Calculate change and percentage
         if (marketData.close > 0 && marketData.price > 0) {
           marketData.change = marketData.price - marketData.close;
@@ -396,4 +395,3 @@ export async function getMultipleMarketData(symbols: string[]): Promise<
 
   return Promise.all(promises);
 }
-

@@ -242,4 +242,3 @@ export interface IbkrClientConfig {
   baseUrl?: string;
   timeout?: number;
 }
-

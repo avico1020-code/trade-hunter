@@ -1,6 +1,6 @@
-import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 
 // TTL: 24 hours (in milliseconds)
 const TTL_24_HOURS = 24 * 60 * 60 * 1000;
@@ -191,7 +191,7 @@ export const fetchQuote = action({
       const meta = quote.meta;
       const currentPrice = meta.regularMarketPrice || 0;
       const previousClose = meta.chartPreviousClose || meta.previousClose || 0;
-      
+
       // Calculate change and percent
       const change = currentPrice - previousClose;
       const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
@@ -206,7 +206,9 @@ export const fetchQuote = action({
       };
 
       // Debug log
-      console.log(`[${symbol}] Price: ${currentPrice}, PrevClose: ${previousClose}, Change: ${change}, Percent: ${changePercent.toFixed(2)}%`);
+      console.log(
+        `[${symbol}] Price: ${currentPrice}, PrevClose: ${previousClose}, Change: ${change}, Percent: ${changePercent.toFixed(2)}%`
+      );
 
       // Store in cache
       await ctx.runMutation(internal.yahooFinance.storeQuote, data);
@@ -214,7 +216,7 @@ export const fetchQuote = action({
       return data;
     } catch (error) {
       console.error(`Error fetching quote for ${symbol}:`, error);
-      
+
       // Return zero data instead of throwing to prevent UI crashes
       return {
         symbol,
@@ -270,7 +272,7 @@ export const fetchMultipleQuotes = action({
         const meta = quote.meta;
         const currentPrice = meta.regularMarketPrice || 0;
         const previousClose = meta.chartPreviousClose || meta.previousClose || 0;
-        
+
         // Calculate change and percent
         const change = currentPrice - previousClose;
         const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;

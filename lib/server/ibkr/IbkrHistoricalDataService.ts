@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Historical Data Service
- * 
+ *
  * Efficient historical data with caching and pacing protection
  * - In-memory cache keyed by symbol + duration + barSize + whatToShow + useRth
  * - Queues requests and limits concurrent calls
@@ -11,9 +11,9 @@ import { getIbkrConnectionManager } from "./IbkrConnectionManager";
 import { getIbkrContractsService } from "./IbkrContractsService";
 import type {
   HistoricalBar,
-  HistoricalDataParams,
-  HistoricalDataCacheKey,
   HistoricalDataCacheEntry,
+  HistoricalDataCacheKey,
+  HistoricalDataParams,
   IbkrContract,
 } from "./types";
 
@@ -47,7 +47,7 @@ export class IbkrHistoricalDataService {
 
   /**
    * Get historical data with caching and pacing protection
-   * 
+   *
    * @param params Historical data parameters
    * @param forceRefresh If true, bypass cache
    * @returns Array of historical bars
@@ -63,7 +63,9 @@ export class IbkrHistoricalDataService {
     if (!forceRefresh) {
       const cached = this.cache.get(cacheKey);
       if (cached && cached.expiry > Date.now()) {
-        console.log(`[Historical Data] Using cached data for ${params.symbol} (${params.durationStr}, ${params.barSize})`);
+        console.log(
+          `[Historical Data] Using cached data for ${params.symbol} (${params.durationStr}, ${params.barSize})`
+        );
         return cached.bars;
       }
     }
@@ -174,7 +176,9 @@ export class IbkrHistoricalDataService {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         this.activeRequests.delete(reqId);
-        request.reject(new Error(`Historical data request timeout for ${request.params.symbol} after 30 seconds`));
+        request.reject(
+          new Error(`Historical data request timeout for ${request.params.symbol} after 30 seconds`)
+        );
         resolve();
         this.processQueue(); // Continue processing queue
       }, 30000);
@@ -320,7 +324,11 @@ export class IbkrHistoricalDataService {
         (client as any).removeListener("error", onError);
 
         const err = error instanceof Error ? error : new Error(String(error));
-        request.reject(new Error(`Failed to request historical data for ${request.params.symbol}: ${err.message}`));
+        request.reject(
+          new Error(
+            `Failed to request historical data for ${request.params.symbol}: ${err.message}`
+          )
+        );
         resolve();
         this.processQueue(); // Continue processing queue
       }
@@ -334,4 +342,3 @@ export class IbkrHistoricalDataService {
 export function getIbkrHistoricalDataService(): IbkrHistoricalDataService {
   return IbkrHistoricalDataService.getInstance();
 }
-

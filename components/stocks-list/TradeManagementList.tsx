@@ -1,7 +1,7 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "convex/react";
+import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 
 export function TradeManagementList() {
@@ -32,20 +32,20 @@ export function TradeManagementList() {
               ) : (
                 activeTrades.map((trade) => (
                   <tr key={trade._id} className="border-b hover:bg-muted/50">
-                  <td className="p-4 font-medium">{trade.symbol}</td>
-                  <td className="p-4">${trade.entryPrice.toFixed(2)}</td>
+                    <td className="p-4 font-medium">{trade.symbol}</td>
+                    <td className="p-4">${trade.entryPrice.toFixed(2)}</td>
                     <td className="p-4">${trade.currentPrice.toFixed(2)}</td>
                     <td className="p-4">{trade.strategyType}</td>
-                  <td
-                    className={`p-4 font-semibold ${
+                    <td
+                      className={`p-4 font-semibold ${
                         trade.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
+                      }`}
+                    >
                       {trade.unrealizedPnL >= 0 ? "+" : ""}${trade.unrealizedPnL.toFixed(2)} (
                       {trade.unrealizedPnLPercent >= 0 ? "+" : ""}
                       {trade.unrealizedPnLPercent.toFixed(2)}%)
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>

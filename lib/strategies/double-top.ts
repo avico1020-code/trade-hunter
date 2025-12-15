@@ -5,8 +5,8 @@
 // מבוסס על הקוד המקורי שלך, עם עטיפה שמתאימה לסורק ולמנוע הביצוע.
 
 import {
-  IPatternStrategy,
   IndicatorSnapshot,
+  IPatternStrategy,
   PatternDetectionResult,
 } from "../scanner/trade-pattern-scanner";
 import type { Candle, EntrySignal, ExitSignal, StopLevels } from "./types";
@@ -119,8 +119,7 @@ export class DoubleTopStrategy {
     let earlyHeadsUp = false;
     if (this.cfg.earlyHeadsUpEnabled) {
       const upOk =
-        this.countConsecutiveRisingBarsFrom(trough.idx + 1, data) >=
-        this.cfg.earlyHeadsUpRiseBars;
+        this.countConsecutiveRisingBarsFrom(trough.idx + 1, data) >= this.cfg.earlyHeadsUpRiseBars;
       if (upOk) {
         const last = data[n - 1].close;
         const mid = trough.low + (p1.price - trough.low) * 0.5;
@@ -139,10 +138,7 @@ export class DoubleTopStrategy {
       neckline: trough.low,
       confirmCount: redCount,
       earlyHeadsUp,
-      reason:
-        redCount >= this.cfg.patternConfirmRedBars
-          ? "pattern-confirmed"
-          : "awaiting-confirm",
+      reason: redCount >= this.cfg.patternConfirmRedBars ? "pattern-confirmed" : "awaiting-confirm",
     };
   }
 
@@ -169,11 +165,7 @@ export class DoubleTopStrategy {
   // =========================================
   // 3) טריגר יציאה ראשונה – ווליום חריג בירידה
   // =========================================
-  exitFirst(
-    data: Candle[],
-    st: PatternState,
-    firstRedIdxAfterP2: number | null
-  ): ExitSignal {
+  exitFirst(data: Candle[], st: PatternState, firstRedIdxAfterP2: number | null): ExitSignal {
     if (!st.patternFound) return { exit: false, leg: 1 };
 
     const last = data[data.length - 1];
@@ -181,11 +173,7 @@ export class DoubleTopStrategy {
     const windowAvg =
       this.cfg.abnormalVolWindowMode === "fromFirstRed" && firstRedIdxAfterP2 !== null
         ? avgVolume(data, firstRedIdxAfterP2, data.length)
-        : avgVolume(
-            data,
-            Math.max(0, data.length - this.cfg.abnormalVolFixedWindow),
-            data.length
-          );
+        : avgVolume(data, Math.max(0, data.length - this.cfg.abnormalVolFixedWindow), data.length);
 
     if (windowAvg <= 0) return { exit: false, leg: 1 };
 
@@ -203,7 +191,10 @@ export class DoubleTopStrategy {
     const c = data[data.length - 1];
 
     for (const w of this.cfg.maWindows) {
-      const ma = sma(data.map((d) => d.close), w);
+      const ma = sma(
+        data.map((d) => d.close),
+        w
+      );
       if (ma == null) continue;
 
       const prev = data[data.length - 2];
@@ -240,7 +231,10 @@ export class DoubleTopStrategy {
     if (!this.cfg.exit2OnTouchMA) return { exit: false, leg: 2 };
     const c = data[data.length - 1];
     for (const w of this.cfg.maWindows) {
-      const ma = sma(data.map((d) => d.close), w);
+      const ma = sma(
+        data.map((d) => d.close),
+        w
+      );
       if (ma == null) continue;
       if (c.low <= ma && c.close <= ma) {
         return { exit: true, leg: 2, reason: `touch-ma-${w}`, price: c.close };
@@ -334,8 +328,7 @@ export class DoubleTopStrategy {
   private lastBrokenLowerHighStop(data: Candle[], refIdx: number): number | undefined {
     let lastLH: { idx: number; price: number } | null = null;
     for (let i = refIdx + 1; i < data.length - 1; i++) {
-      const isLH =
-        data[i].high < data[i - 1].high && data[i].high > data[i + 1].high;
+      const isLH = data[i].high < data[i - 1].high && data[i].high > data[i + 1].high;
       if (isLH) lastLH = { idx: i, price: data[i].high };
     }
     return lastLH?.price;
@@ -359,18 +352,22 @@ function avgVolume(data: Candle[], from: number, to: number): number {
   return sum / (e - s);
 }
 
+// Import centralized indicators library
+import * as Indicators from "../indicators";
+
 function sma(values: number[], w: number): number | null {
-  if (values.length < w) return null;
-  let sum = 0;
-  for (let i = values.length - w; i < values.length; i++) sum += values[i];
-  return sum / w;
+  // Use centralized SMA calculation
+  return Indicators.SMA(values, w);
 }
 
 function smaAt(data: Candle[], w: number, i: number): number {
   if (i + 1 < w) return Number.POSITIVE_INFINITY;
-  let sum = 0;
-  for (let k = i - w + 1; k <= i; k++) sum += data[k].close;
-  return sum / w;
+
+  // Extract closes up to index i
+  const closes = data.slice(0, i + 1).map((c) => c.close);
+  const result = Indicators.SMA(closes, w);
+
+  return result ?? Number.POSITIVE_INFINITY;
 }
 
 // =========================
@@ -378,12 +375,12 @@ function smaAt(data: Candle[], w: number, i: number): number {
 // מממש IPatternStrategy עבור הסורק + מנוע הביצוע
 // =========================
 
-import type { StrategyState } from "./strategy-state";
 import type {
+  IndicatorSnapshot,
   IPatternStrategy,
   PatternDetectionResult,
-  IndicatorSnapshot,
 } from "../scanner/trade-pattern-scanner";
+import type { StrategyState } from "./strategy-state";
 
 export class DoubleTopPatternStrategy implements IPatternStrategy {
   name = "DOUBLE_TOP";
@@ -395,10 +392,7 @@ export class DoubleTopPatternStrategy implements IPatternStrategy {
    * זיהוי תבנית - משמש רק את הסורק
    * לא מחשב entry/exit - רק בודק אם התבנית קיימת
    */
-  detectPattern(
-    candles: Candle[],
-    indicators?: IndicatorSnapshot
-  ): PatternDetectionResult {
+  detectPattern(candles: Candle[], indicators?: IndicatorSnapshot): PatternDetectionResult {
     const base: PatternState = this.impl.detectPattern(candles);
 
     if (!base.patternFound) {
@@ -412,9 +406,7 @@ export class DoubleTopPatternStrategy implements IPatternStrategy {
 
     // Store pattern data in result for use by execution engine
     const secondPeakHigh =
-      base.secondPeakIdx != null
-        ? candles[base.secondPeakIdx].high
-        : undefined;
+      base.secondPeakIdx != null ? candles[base.secondPeakIdx].high : undefined;
 
     const out: PatternDetectionResult = {
       patternFound: true,
@@ -571,10 +563,7 @@ export class DoubleTopPatternStrategy implements IPatternStrategy {
   /**
    * Helper: Find first red bar after index
    */
-  private findFirstRedBarAfter(
-    candles: Candle[],
-    startIdx: number
-  ): number | null {
+  private findFirstRedBarAfter(candles: Candle[], startIdx: number): number | null {
     for (let i = startIdx + 1; i < candles.length; i++) {
       if (candles[i].close < candles[i].open) {
         return i;

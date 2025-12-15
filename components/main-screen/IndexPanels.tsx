@@ -1,15 +1,15 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
+import { useMutation, useQuery } from "convex/react";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { AddIndexModal } from "./AddIndexModal";
 import { ClearCacheButton } from "./ClearCacheButton";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useUser } from "@clerk/nextjs";
-import type { Id } from "@/convex/_generated/dataModel";
 import { IndexPanel } from "./IndexPanel";
 
 export function IndexPanels() {

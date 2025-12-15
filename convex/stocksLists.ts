@@ -350,23 +350,3 @@ export const removeStrategyFromList = mutation({
     await ctx.db.delete(args.strategyId);
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

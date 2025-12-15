@@ -1,9 +1,9 @@
 // Convex Actions for IBKR TWS Socket API
 // These actions call Next.js API routes which connect to TWS via Socket
 
-import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { action } from "./_generated/server";
 
 // Next.js API base URL (for local development)
 const NEXTJS_API_URL = process.env.NEXTJS_URL || "http://localhost:3000";
@@ -25,9 +25,7 @@ export const connect = action({
       return data;
     } catch (error) {
       console.error("TWS connection error:", error);
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to connect to TWS"
-      );
+      throw new Error(error instanceof Error ? error.message : "Failed to connect to TWS");
     }
   },
 });
@@ -105,9 +103,7 @@ export const getMarketData = action({
       return data;
     } catch (error) {
       console.error(`Market data error for ${symbol}:`, error);
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to get market data"
-      );
+      throw new Error(error instanceof Error ? error.message : "Failed to get market data");
     }
   },
 });
@@ -135,9 +131,7 @@ export const getMultipleMarketData = action({
       return data;
     } catch (error) {
       console.error(`Batch market data error for symbols: ${symbols.join(", ")}`, error);
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to get batch market data"
-      );
+      throw new Error(error instanceof Error ? error.message : "Failed to get batch market data");
     }
   },
 });
@@ -205,10 +199,7 @@ export const getHistoricalData = action({
       return data;
     } catch (error) {
       console.error(`Historical data error for ${symbol}:`, error);
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to get historical data"
-      );
+      throw new Error(error instanceof Error ? error.message : "Failed to get historical data");
     }
   },
 });
-

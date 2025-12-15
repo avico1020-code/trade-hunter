@@ -1,10 +1,10 @@
 "use client";
 
+import { useAction } from "convex/react";
 import { BarChart3, ExternalLink, Newspaper, Radar } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 type TabType = "news" | "statistics" | "radar";

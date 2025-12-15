@@ -1,10 +1,10 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { api } from "@/convex/_generated/api";
 
 export function ClearCacheButton() {
   const clearCache = useMutation(api.clearYahooCache.clearAllYahooCache);
@@ -45,4 +45,3 @@ export function ClearCacheButton() {
     </Button>
   );
 }
-

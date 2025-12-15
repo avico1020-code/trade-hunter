@@ -1,6 +1,6 @@
-import { action, mutation, query, internalMutation, internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
 
 const CACHE_TTL = 30 * 1000; // 30 seconds - shorter for more real-time data
 
@@ -12,7 +12,7 @@ export const getMarketData = query({
   args: { symbol: v.string() },
   handler: async (ctx, { symbol }) => {
     const now = Date.now();
-    
+
     const cached = await ctx.db
       .query("marketDataCache")
       .withIndex("by_symbol", (q) => q.eq("symbol", symbol))
@@ -166,7 +166,9 @@ export const fetchAndCacheMarketDataInternal = internalAction({
               source: "yahoo",
             });
 
-            console.log(`📰 [Convex] YAHOO FINANCE SUCCESS for ${symbol}: $${currentPrice.toFixed(2)} (${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%) - Volume: ${volume.toLocaleString()}`);
+            console.log(
+              `📰 [Convex] YAHOO FINANCE SUCCESS for ${symbol}: $${currentPrice.toFixed(2)} (${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%) - Volume: ${volume.toLocaleString()}`
+            );
             return { success: true, source: "yahoo" };
           }
         }
@@ -199,7 +201,7 @@ export const refreshMultipleSymbols = action({
     console.log(`🔄 [Convex] Refreshing ${symbols.length} symbols...`);
 
     const results = await Promise.all(
-      symbols.map((symbol) => 
+      symbols.map((symbol) =>
         ctx.runAction(internal.marketData.fetchAndCacheMarketDataInternal, { symbol })
       )
     );
@@ -210,4 +212,3 @@ export const refreshMultipleSymbols = action({
     return { successful, total: symbols.length };
   },
 });
-

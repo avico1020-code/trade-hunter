@@ -214,9 +214,7 @@ export function AIChatPanel() {
         </CardHeader>
         <CardContent className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
-            <p className="text-sm text-muted-foreground">
-              🔒 עליך להתחבר כדי להשתמש בצ'אט
-            </p>
+            <p className="text-sm text-muted-foreground">🔒 עליך להתחבר כדי להשתמש בצ'אט</p>
             <p className="text-xs text-muted-foreground">אנא התחבר ונסה שוב</p>
           </div>
         </CardContent>
@@ -306,7 +304,11 @@ export function AIChatPanel() {
             size="icon"
             aria-label="שלח הודעה"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </CardContent>

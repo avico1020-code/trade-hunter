@@ -1,6 +1,7 @@
 // Public queries for client-side usage
-import { query } from "./_generated/server";
+
 import { v } from "convex/values";
+import { query } from "./_generated/server";
 
 // Get cached quote from DB (for real-time display)
 export const getQuote = query({
@@ -98,4 +99,3 @@ export const getHistoricalData = query({
     return null;
   },
 });
-

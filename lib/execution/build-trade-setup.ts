@@ -10,10 +10,7 @@
  * PatternScanner → ExecutionEngine
  */
 
-import type {
-  PatternFoundEvent,
-  PatternDetectionResult,
-} from "../scanner/trade-pattern-scanner";
+import type { PatternDetectionResult, PatternFoundEvent } from "../scanner/trade-pattern-scanner";
 import type { Candle } from "../strategies/double-top";
 
 // ============ 1) TradeSetup Interface ============
@@ -99,10 +96,7 @@ export function buildTradeSetupFromPattern(
  * @param candles - Historical candle data
  * @returns TradeSetup or null if required data is missing
  */
-function buildDoubleTopSetup(
-  event: PatternFoundEvent,
-  candles: Candle[]
-): TradeSetup | null {
+function buildDoubleTopSetup(event: PatternFoundEvent, candles: Candle[]): TradeSetup | null {
   const { patternState, symbol, master } = event;
 
   // Validate pattern state
@@ -183,4 +177,3 @@ function buildDoubleTopSetup(
 
   return setup;
 }
-

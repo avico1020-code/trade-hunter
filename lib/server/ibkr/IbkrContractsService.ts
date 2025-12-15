@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Contracts Service
- * 
+ *
  * Resolves symbols to IBKR contracts with caching
  * Used by all other services that need contract details
  */
@@ -35,16 +35,13 @@ export class IbkrContractsService {
   /**
    * Resolve a stock symbol to an IBKR contract
    * Uses SMART routing for US stocks (most reliable)
-   * 
+   *
    * @param symbol Stock symbol (e.g., "AAPL", "MSFT")
    * @param forceRefresh If true, bypass cache and fetch fresh data
    * @returns IBKR contract object
    * @throws Error if contract cannot be resolved
    */
-  async resolveStockContract(
-    symbol: string,
-    forceRefresh: boolean = false
-  ): Promise<IbkrContract> {
+  async resolveStockContract(symbol: string, forceRefresh: boolean = false): Promise<IbkrContract> {
     const cacheKey = symbol.toUpperCase();
 
     // Check cache first
@@ -68,10 +65,7 @@ export class IbkrContractsService {
       let contractResolved = false;
 
       // Set up contract details handler
-      const onContractDetails = (
-        reqId: number,
-        contractDetails: ContractDetails
-      ) => {
+      const onContractDetails = (reqId: number, contractDetails: ContractDetails) => {
         if (contractResolved) return;
 
         clearTimeout(timeout);
@@ -103,7 +97,7 @@ export class IbkrContractsService {
         if (!contractResolved) {
           clearTimeout(timeout);
           contractResolved = true;
-          
+
           // Remove listeners
           (client as any).removeListener("contractDetails", onContractDetails);
           (client as any).removeListener("contractDetailsEnd", onContractDetailsEnd);
@@ -126,7 +120,9 @@ export class IbkrContractsService {
           (client as any).removeListener("contractDetailsEnd", onContractDetailsEnd);
           (client as any).removeListener("error", onError);
 
-          reject(new Error(`Failed to resolve contract for ${symbol}: ${err.message} (code: ${code})`));
+          reject(
+            new Error(`Failed to resolve contract for ${symbol}: ${err.message} (code: ${code})`)
+          );
         }
       };
 
@@ -184,4 +180,3 @@ export class IbkrContractsService {
 export function getIbkrContractsService(): IbkrContractsService {
   return IbkrContractsService.getInstance();
 }
-

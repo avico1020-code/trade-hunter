@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { Save, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AIChatPanel } from "@/components/main-screen/AIChatPanel";
 import { StrategyKitHeader } from "@/components/strategy-kit/StrategyKitHeader";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ export default function DoubleTopStrategyPage() {
     if (existingStrategy) {
       // General Terms
       setTimeInterval(existingStrategy.timeInterval);
-      setIndicators(existingStrategy.indicators.map(ind => ({ ...ind, isSelecting: false })));
+      setIndicators(existingStrategy.indicators.map((ind) => ({ ...ind, isSelecting: false })));
 
       // Pattern Recognition
       setCandlesBetweenHighs(existingStrategy.config.minBarsBetweenPeaks.toString());
@@ -262,7 +262,7 @@ export default function DoubleTopStrategyPage() {
         <section className="mr-[30%] px-6 py-6">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Content */}
-              <div>
+            <div>
               {/* General Terms Section */}
               <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-4">תנאים כלליים</h1>
@@ -344,7 +344,7 @@ export default function DoubleTopStrategyPage() {
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
-              </div>
+                              </div>
                             ) : (
                               <div className="flex items-center gap-3 flex-1 max-w-md">
                                 <Button type="button" variant="outline" className="flex-1">
@@ -375,8 +375,8 @@ export default function DoubleTopStrategyPage() {
                       )}
                     </div>
                   </div>
+                </div>
               </div>
-            </div>
 
               {/* Pattern Recognition Section */}
               <h1 className="text-3xl font-bold mb-6">זיהוי דפוס</h1>
@@ -508,7 +508,7 @@ export default function DoubleTopStrategyPage() {
                     />
                   </div>
                 )}
-                </div>
+              </div>
 
               {/* Entry Requirements Section */}
               <div className="mt-8">
@@ -520,9 +520,9 @@ export default function DoubleTopStrategyPage() {
                   {/* Number of confirmation candles */}
                   <div className="space-y-2">
                     <Label htmlFor="first-entry-confirmation-candles">מספר נרות אישור</Label>
-                  <Input
+                    <Input
                       id="first-entry-confirmation-candles"
-                    type="number"
+                      type="number"
                       value={firstEntryConfirmationCandles}
                       onChange={(e) => setFirstEntryConfirmationCandles(e.target.value)}
                       placeholder="הזן ערך מספרי"
@@ -586,10 +586,10 @@ export default function DoubleTopStrategyPage() {
                   <div className="space-y-2">
                     <Label htmlFor="second-entry-confirmation-candles">
                       מספר נרות אישור מתחת ל-MA
-                  </Label>
-                  <Input
+                    </Label>
+                    <Input
                       id="second-entry-confirmation-candles"
-                    type="number"
+                      type="number"
                       value={secondEntryConfirmationCandles}
                       onChange={(e) => setSecondEntryConfirmationCandles(e.target.value)}
                       placeholder="הזן ערך מספרי"
@@ -621,12 +621,12 @@ export default function DoubleTopStrategyPage() {
                             </Button>
                           </div>
                         ))}
-                </div>
+                      </div>
 
                       {/* Add new MA */}
                       <div className="flex items-center gap-2 max-w-md">
-                  <Input
-                    type="number"
+                        <Input
+                          type="number"
                           value={customMaWindow}
                           onChange={(e) => setCustomMaWindow(e.target.value)}
                           placeholder="הוסף MA חדש"
@@ -643,7 +643,7 @@ export default function DoubleTopStrategyPage() {
                     </div>
                   </div>
                 </div>
-                </div>
+              </div>
 
               {/* Exit Conditions Section */}
               <div className="mt-8">
@@ -655,15 +655,15 @@ export default function DoubleTopStrategyPage() {
                   {/* Abnormal Volume Percentage */}
                   <div className="space-y-2">
                     <Label htmlFor="abnormal-volume-percentage">פי כמה מהממוצע ייחשב חריג</Label>
-                  <Input
+                    <Input
                       id="abnormal-volume-percentage"
-                    type="number"
+                      type="number"
                       value={abnormalVolumePercentage}
                       onChange={(e) => setAbnormalVolumePercentage(e.target.value)}
                       placeholder="למשל: 2.0"
                       className="max-w-md"
                     />
-                </div>
+                  </div>
 
                   {/* Abnormal Volume Window Mode */}
                   <div className="space-y-2">
@@ -686,22 +686,22 @@ export default function DoubleTopStrategyPage() {
                         מהנר האדום הראשון
                       </Button>
                     </div>
-                </div>
+                  </div>
 
                   {/* Number of candles back to compare (only for fixed mode) */}
                   {abnormalVolWindowMode === "fixed" && (
                     <div className="space-y-2">
                       <Label htmlFor="candles-back-to-compare">מספר נרות אחורה להשוואת נפח</Label>
-                    <Input
+                      <Input
                         id="candles-back-to-compare"
-                      type="number"
+                        type="number"
                         value={candlesBackToCompare}
                         onChange={(e) => setCandlesBackToCompare(e.target.value)}
                         placeholder="הזן ערך מספרי"
                         className="max-w-md"
                       />
-                  </div>
-                )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Second Exit */}
@@ -814,7 +814,7 @@ export default function DoubleTopStrategyPage() {
                         לא
                       </Button>
                     </div>
-                </div>
+                  </div>
 
                   {/* Stop 2 trailing */}
                   <div className="space-y-2">
@@ -839,20 +839,20 @@ export default function DoubleTopStrategyPage() {
                     </div>
                   </div>
                 </div>
-                  </div>
+              </div>
 
               {/* Save Button */}
               <div className="mt-8 flex justify-end">
-                  <Button
+                <Button
                   onClick={handleSave}
-                    disabled={isSaving}
+                  disabled={isSaving}
                   size="lg"
                   className="flex items-center gap-2"
                 >
                   <Save className="h-5 w-5" />
                   {isSaving ? "שומר..." : "שמור אסטרטגיה"}
-                  </Button>
-                </div>
+                </Button>
+              </div>
             </div>
           </div>
         </section>
@@ -862,7 +862,7 @@ export default function DoubleTopStrategyPage() {
           className="fixed right-0 bottom-0 w-[30%] p-6 overflow-y-auto border-r bg-background"
           style={{ top: "calc(64px + 1rem)" }}
         >
-            <AIChatPanel />
+          <AIChatPanel />
         </aside>
       </main>
     </div>

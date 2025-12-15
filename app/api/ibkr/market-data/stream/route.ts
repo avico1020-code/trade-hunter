@@ -1,9 +1,13 @@
-import { NextRequest } from "next/server";
-import { marketDataManager } from "@/lib/ibkr/marketDataManager";
-
 /**
+ * Market Data Stream API Route - Phase 6
+ *
  * Server-Sent Events (SSE) endpoint for real-time market data streaming
+ * Now uses MarketDataHub as the single source of truth
  */
+
+import type { NextRequest } from "next/server";
+import { getMarketDataHub } from "@/lib/server/market-data";
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get("symbol");
@@ -24,11 +28,36 @@ export async function GET(request: NextRequest) {
       };
 
       try {
-        console.log(`📡 [SSE] Starting stream for ${symbol}`);
+        console.log(`📡 [SSE] Starting stream for ${symbol} via MarketDataHub`);
 
-        // Subscribe to market data
-        const unsubscribe = await marketDataManager.subscribe(symbol, (snapshot) => {
-          sendMessage(snapshot);
+        const hub = getMarketDataHub();
+        const symbolKey = symbol.toUpperCase();
+
+        // Send initial tick if available
+        const initialTick = hub.getLastMarketTick(symbolKey);
+        if (initialTick) {
+          sendMessage({
+            type: "tick",
+            symbol: initialTick.symbol,
+            price: initialTick.price,
+            size: initialTick.size || 0,
+            ts: initialTick.ts,
+          });
+        }
+
+        // Subscribe to tick events via MarketDataHub
+        const unsubscribe = hub.onTick(symbolKey, (tick) => {
+          // Convert Tick to MarketTick format for client
+          const marketTick = hub.getLastMarketTick(symbolKey);
+          if (marketTick) {
+            sendMessage({
+              type: "tick",
+              symbol: marketTick.symbol,
+              price: marketTick.price,
+              size: marketTick.size || 0,
+              ts: marketTick.ts,
+            });
+          }
         });
 
         // Keep-alive ping every 30 seconds
@@ -60,4 +89,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-

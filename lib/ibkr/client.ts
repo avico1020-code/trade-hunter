@@ -2,17 +2,17 @@
 // This runs on Next.js server (API Routes) to communicate with IB Gateway
 
 import type {
-  IbkrAuthStatus,
   IbkrAccount,
-  IbkrPosition,
-  IbkrPortfolioSummary,
-  IbkrStockSearchResult,
-  IbkrMarketDataSnapshot,
+  IbkrAuthStatus,
+  IbkrClientConfig,
   IbkrHistoricalData,
+  IbkrMarketDataSnapshot,
+  IbkrOpenOrder,
   IbkrOrder,
   IbkrOrderResponse,
-  IbkrOpenOrder,
-  IbkrClientConfig,
+  IbkrPortfolioSummary,
+  IbkrPosition,
+  IbkrStockSearchResult,
 } from "@/lib/types/ibkr";
 
 export class IbkrClient {
@@ -51,19 +51,21 @@ export class IbkrClient {
       // For Node.js server-side, we need to use node:https with self-signed certificate support
       // For browser/client-side, regular fetch works (user accepts SSL warning in browser)
       let response: Response;
-      
+
       console.log(`[IBKR Client] Making ${method} request to: ${url.toString()}`);
-      
+
       if (typeof window === "undefined") {
         // Server-side: Use Node.js https module to bypass SSL verification
         const https = require("node:https");
         const http = require("node:http");
-        
+
         const urlObj = new URL(url.toString());
         const protocol = urlObj.protocol === "https:" ? https : http;
-        
-        console.log(`[IBKR Client] Server-side request to ${urlObj.hostname}:${urlObj.port || (urlObj.protocol === "https:" ? 443 : 80)}`);
-        
+
+        console.log(
+          `[IBKR Client] Server-side request to ${urlObj.hostname}:${urlObj.port || (urlObj.protocol === "https:" ? 443 : 80)}`
+        );
+
         // Create a custom fetch-like function for Node.js
         response = await new Promise<Response>((resolve, reject) => {
           const requestOptions: any = {
@@ -77,7 +79,7 @@ export class IbkrClient {
             },
             rejectUnauthorized: false, // Bypass SSL certificate verification for localhost
           };
-          
+
           const req = protocol.request(requestOptions, (res: any) => {
             let data = "";
             res.on("data", (chunk: Buffer | string) => {
@@ -86,7 +88,7 @@ export class IbkrClient {
             res.on("end", () => {
               console.log(`[IBKR Client] Response status: ${res.statusCode} ${res.statusMessage}`);
               console.log(`[IBKR Client] Response body length: ${data.length} bytes`);
-              
+
               // Create a Response-like object
               resolve({
                 ok: res.statusCode >= 200 && res.statusCode < 300,
@@ -105,21 +107,21 @@ export class IbkrClient {
               } as Response);
             });
           });
-          
+
           req.on("error", (err: Error) => {
             console.error(`[IBKR Client] Request error:`, err);
             reject(err);
           });
-          
+
           req.setTimeout(30000, () => {
             req.destroy();
             reject(new Error(`Request timeout after 30 seconds to ${url.toString()}`));
           });
-          
+
           if (options.body) {
             req.write(JSON.stringify(options.body));
           }
-          
+
           req.end();
         });
       } else {
@@ -136,7 +138,9 @@ export class IbkrClient {
       }
 
       const text = await response.text();
-      console.log(`[IBKR Client] Response OK: ${response.ok}, Status: ${response.status}, Body: ${text.substring(0, 200)}`);
+      console.log(
+        `[IBKR Client] Response OK: ${response.ok}, Status: ${response.status}, Body: ${text.substring(0, 200)}`
+      );
 
       if (!response.ok) {
         const errorMsg = `IBKR API Error ${response.status}: ${text.substring(0, 500)}`;
@@ -161,25 +165,43 @@ export class IbkrClient {
       } else {
         errorMessage = JSON.stringify(error) || "Unknown error";
       }
-      
+
       // Log the full error object for debugging
       console.error(`[IBKR Client] Request failed to ${url.toString()}:`, error);
       console.error(`[IBKR Client] Error message: "${errorMessage}"`);
-      console.error(`[IBKR Client] Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
-      
+      console.error(
+        `[IBKR Client] Error type: ${error instanceof Error ? error.constructor.name : typeof error}`
+      );
+
       const fullError = `IBKR Request failed to ${url.toString()}: ${errorMessage || "Unknown error (see logs for details)"}`;
-      
+
       // Check for common errors and provide helpful messages
       if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("connect ECONNREFUSED")) {
-        throw new Error(`Cannot connect to IB Gateway at ${url.toString()}. Please ensure IB Gateway is running and accessible at https://localhost:5000`);
-      } else if (errorMessage.includes("ETIMEDOUT") || errorMessage.includes("timeout") || errorMessage.includes("TIMEDOUT")) {
-        throw new Error(`Connection timeout to IB Gateway. Please ensure IB Gateway is running and responsive`);
-      } else if (errorMessage.includes("CERT") || errorMessage.includes("SSL") || errorMessage.includes("certificate")) {
-        throw new Error(`SSL certificate error. This should not happen with rejectUnauthorized: false`);
+        throw new Error(
+          `Cannot connect to IB Gateway at ${url.toString()}. Please ensure IB Gateway is running and accessible at https://localhost:5000`
+        );
+      } else if (
+        errorMessage.includes("ETIMEDOUT") ||
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("TIMEDOUT")
+      ) {
+        throw new Error(
+          `Connection timeout to IB Gateway. Please ensure IB Gateway is running and responsive`
+        );
+      } else if (
+        errorMessage.includes("CERT") ||
+        errorMessage.includes("SSL") ||
+        errorMessage.includes("certificate")
+      ) {
+        throw new Error(
+          `SSL certificate error. This should not happen with rejectUnauthorized: false`
+        );
       } else if (errorMessage.includes("ENOTFOUND") || errorMessage.includes("getaddrinfo")) {
-        throw new Error(`Host not found: ${url.hostname}. Please check your IB Gateway configuration`);
+        throw new Error(
+          `Host not found: ${url.hostname}. Please check your IB Gateway configuration`
+        );
       }
-      
+
       throw new Error(fullError);
     }
   }
@@ -223,7 +245,9 @@ export class IbkrClient {
 
       if (!status.authenticated || !status.connected) {
         console.error("[IBKR Client] ❌ Not authenticated or not connected");
-        console.error(`[IBKR Client] Authenticated: ${status.authenticated}, Connected: ${status.connected}`);
+        console.error(
+          `[IBKR Client] Authenticated: ${status.authenticated}, Connected: ${status.connected}`
+        );
         throw new Error(
           "IB Gateway is not connected. Please ensure IB Gateway is running and you are logged in at https://localhost:5000"
         );
@@ -258,7 +282,7 @@ export class IbkrClient {
   async detectAccountType(): Promise<"PAPER" | "LIVE" | "UNKNOWN"> {
     try {
       const accounts = await this.getPortfolioAccounts();
-      
+
       if (accounts.length === 0) {
         console.warn("[IBKR Client] No accounts found");
         return "UNKNOWN";
@@ -266,10 +290,12 @@ export class IbkrClient {
 
       // Check first account (usually the active one)
       const firstAccount = accounts[0];
-      
+
       // Method 1: Check account ID prefix (DU = Paper Trading)
       if (firstAccount.accountId?.startsWith("DU")) {
-        console.log(`[IBKR Client] ✅ Account detected: PAPER (Account ID: ${firstAccount.accountId})`);
+        console.log(
+          `[IBKR Client] ✅ Account detected: PAPER (Account ID: ${firstAccount.accountId})`
+        );
         return "PAPER";
       }
 
@@ -277,11 +303,15 @@ export class IbkrClient {
       if (firstAccount.tradingType) {
         const tradingTypeLower = firstAccount.tradingType.toLowerCase();
         if (tradingTypeLower.includes("paper") || tradingTypeLower.includes("demo")) {
-          console.log(`[IBKR Client] ✅ Account detected: PAPER (Trading Type: ${firstAccount.tradingType})`);
+          console.log(
+            `[IBKR Client] ✅ Account detected: PAPER (Trading Type: ${firstAccount.tradingType})`
+          );
           return "PAPER";
         }
         if (tradingTypeLower.includes("live") || tradingTypeLower.includes("production")) {
-          console.log(`[IBKR Client] ✅ Account detected: LIVE (Trading Type: ${firstAccount.tradingType})`);
+          console.log(
+            `[IBKR Client] ✅ Account detected: LIVE (Trading Type: ${firstAccount.tradingType})`
+          );
           return "LIVE";
         }
       }
@@ -301,15 +331,27 @@ export class IbkrClient {
 
       // Method 4: Check account alias/display name
       if (firstAccount.accountAlias || firstAccount.displayName) {
-        const aliasLower = (firstAccount.accountAlias || firstAccount.displayName || "").toLowerCase();
-        if (aliasLower.includes("paper") || aliasLower.includes("demo") || aliasLower.includes("test")) {
-          console.log(`[IBKR Client] ✅ Account detected: PAPER (Alias: ${firstAccount.accountAlias || firstAccount.displayName})`);
+        const aliasLower = (
+          firstAccount.accountAlias ||
+          firstAccount.displayName ||
+          ""
+        ).toLowerCase();
+        if (
+          aliasLower.includes("paper") ||
+          aliasLower.includes("demo") ||
+          aliasLower.includes("test")
+        ) {
+          console.log(
+            `[IBKR Client] ✅ Account detected: PAPER (Alias: ${firstAccount.accountAlias || firstAccount.displayName})`
+          );
           return "PAPER";
         }
       }
 
       // Default: Assume LIVE if not clearly Paper
-      console.log(`[IBKR Client] ⚠️ Account type unclear, defaulting to LIVE (Account ID: ${firstAccount.accountId})`);
+      console.log(
+        `[IBKR Client] ⚠️ Account type unclear, defaulting to LIVE (Account ID: ${firstAccount.accountId})`
+      );
       return "LIVE";
     } catch (error) {
       console.error("[IBKR Client] ❌ Failed to detect account type:", error);
@@ -505,4 +547,3 @@ export function getIbkrClient(config?: IbkrClientConfig): IbkrClient {
   }
   return ibkrClientInstance;
 }
-

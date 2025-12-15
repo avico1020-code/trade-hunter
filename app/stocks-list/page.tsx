@@ -1,5 +1,6 @@
 "use client";
 
+import { useMutation } from "convex/react";
 import { useState } from "react";
 import { AIChatPanel } from "@/components/main-screen/AIChatPanel";
 import { ChartPanel } from "@/components/stocks-list/ChartPanel";
@@ -7,10 +8,9 @@ import { InformationPanel } from "@/components/stocks-list/InformationPanel";
 import { StocksListHeader } from "@/components/stocks-list/StocksListHeader";
 import { StocksTable } from "@/components/stocks-list/StocksTable";
 import { TradeManagementList } from "@/components/stocks-list/TradeManagementList";
-import { STRATEGY_DATABASE } from "@/data/strategies";
-import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { STRATEGY_DATABASE } from "@/data/strategies";
 
 export default function StocksListPage() {
   const addStrategyToList = useMutation(api.stocksLists.addStrategyToList);
@@ -36,7 +36,8 @@ export default function StocksListPage() {
       רברסל: "reversal",
     };
 
-    const strategyType = strategyTypeMap[strategyName] || strategyName.toLowerCase().replace(" ", "-");
+    const strategyType =
+      strategyTypeMap[strategyName] || strategyName.toLowerCase().replace(" ", "-");
 
     try {
       await addStrategyToList({

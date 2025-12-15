@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - News Service
- * 
+ *
  * Manages news data from IBKR
  * - News providers
  * - Historical news headlines
@@ -10,11 +10,11 @@
 import { getIbkrConnectionManager } from "./IbkrConnectionManager";
 import { getIbkrContractsService } from "./IbkrContractsService";
 import type {
-  NewsProvider,
-  NewsHeadline,
-  NewsArticle,
   HistoricalNewsParams,
   IbkrContract,
+  NewsArticle,
+  NewsHeadline,
+  NewsProvider,
 } from "./types";
 
 export class IbkrNewsService {
@@ -52,7 +52,9 @@ export class IbkrNewsService {
       const providers: NewsProvider[] = [];
       let requestCompleted = false;
 
-      const onNewsProviders = (newsProviders: Array<{ providerCode: string; providerName: string }>) => {
+      const onNewsProviders = (
+        newsProviders: Array<{ providerCode: string; providerName: string }>
+      ) => {
         if (requestCompleted) return;
 
         providers.push(
@@ -180,7 +182,9 @@ export class IbkrNewsService {
         // Limit results if specified
         const limited = params.limit ? headlines.slice(0, params.limit) : headlines;
 
-        console.log(`[News Service] ✅ Received ${limited.length} news headlines for ${params.symbol}`);
+        console.log(
+          `[News Service] ✅ Received ${limited.length} news headlines for ${params.symbol}`
+        );
         resolve(limited);
       };
 
@@ -202,7 +206,7 @@ export class IbkrNewsService {
 
       try {
         const reqId = Math.floor(Math.random() * 10000) + 10000;
-        
+
         // Format dates for IBKR (YYYYMMDD HH:MM:SS)
         const startTimeStr = this.formatDateForIBKR(params.startTime);
         const endTimeStr = this.formatDateForIBKR(params.endTime);
@@ -256,11 +260,7 @@ export class IbkrNewsService {
       let article: NewsArticle | null = null;
       let requestCompleted = false;
 
-      const onNewsArticle = (
-        reqId: number,
-        articleType: number,
-        articleText: string
-      ) => {
+      const onNewsArticle = (reqId: number, articleType: number, articleText: string) => {
         if (requestCompleted) return;
 
         // Get provider name from cache
@@ -314,7 +314,7 @@ export class IbkrNewsService {
 
       try {
         const reqId = Math.floor(Math.random() * 10000) + 20000;
-        
+
         console.log(`[News Service] Requesting article content for ${articleId}...`);
         (client as any).reqNewsArticle(reqId, providerCode, articleId, []);
       } catch (error) {
@@ -340,7 +340,7 @@ export class IbkrNewsService {
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     const seconds = String(date.getSeconds()).padStart(2, "0");
-    
+
     return `${year}${month}${day} ${hours}:${minutes}:${seconds}`;
   }
 }
@@ -351,4 +351,3 @@ export class IbkrNewsService {
 export function getIbkrNewsService(): IbkrNewsService {
   return IbkrNewsService.getInstance();
 }
-

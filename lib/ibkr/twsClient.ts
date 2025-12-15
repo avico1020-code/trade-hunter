@@ -3,10 +3,10 @@
 
 // Note: @stoqey/ib uses CommonJS exports, need to import carefully in Node.js environment
 import type {
-  IbkrMarketDataSnapshot,
-  IbkrHistoricalBar,
-  IbkrPosition,
   IbkrAccount,
+  IbkrHistoricalBar,
+  IbkrMarketDataSnapshot,
+  IbkrPosition,
 } from "@/lib/types/ibkr";
 
 // Lazy load IB library (only on server-side)
@@ -105,15 +105,12 @@ export class TwsClient {
     });
 
     // Market data events (real-time quotes)
-    this.ib.on(
-      EventName.tickPrice,
-      (reqId: number, field: number, price: number, attrib: any) => {
-        const subscription = this.subscriptions.get(reqId);
-        if (subscription) {
-          this.updateSubscriptionData(reqId, field, price);
-        }
+    this.ib.on(EventName.tickPrice, (reqId: number, field: number, price: number, attrib: any) => {
+      const subscription = this.subscriptions.get(reqId);
+      if (subscription) {
+        this.updateSubscriptionData(reqId, field, price);
       }
-    );
+    });
 
     this.ib.on(EventName.tickSize, (reqId: number, field: number, size: number) => {
       const subscription = this.subscriptions.get(reqId);
@@ -373,10 +370,7 @@ export class TwsClient {
   /**
    * Subscribe to real-time market data
    */
-  subscribeMarketData(
-    symbol: string,
-    callback: (data: IbkrMarketDataSnapshot) => void
-  ): number {
+  subscribeMarketData(symbol: string, callback: (data: IbkrMarketDataSnapshot) => void): number {
     const reqId = this.nextReqId++;
     const contract = this.createStockContract(symbol);
 
@@ -425,7 +419,15 @@ export class TwsClient {
 
       this.ib.once(
         EventName.historicalData,
-        (id: number, date: string, open: number, high: number, low: number, close: number, volume: number) => {
+        (
+          id: number,
+          date: string,
+          open: number,
+          high: number,
+          low: number,
+          close: number,
+          volume: number
+        ) => {
           if (id === reqId) {
             bars.push({
               t: new Date(date).getTime(),
@@ -550,4 +552,3 @@ export function getTwsClient(config?: TwsConfig): TwsClient {
   }
   return twsClientInstance;
 }
-

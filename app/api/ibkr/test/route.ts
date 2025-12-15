@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     console.log("[TEST] Starting basic test...");
-    
+
     // Test 1: Can we import the library?
     const IBModule = await import("@stoqey/ib");
     const IB = (IBModule as any).default || (IBModule as any).IB || IBModule;
     console.log("[TEST] IB library imported successfully", typeof IB);
-    
+
     // Test 2: Can we create an instance?
     const ib = new IB({
       clientId: 1,
@@ -16,7 +16,7 @@ export async function GET() {
       port: 4002,
     });
     console.log("[TEST] IB instance created successfully");
-    
+
     // Test 3: Try to connect
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
@@ -25,7 +25,8 @@ export async function GET() {
           NextResponse.json({
             success: true,
             message: "Library works, but couldn't connect (timeout)",
-            details: "IB Gateway is running, but connection failed. This might be a port or API settings issue.",
+            details:
+              "IB Gateway is running, but connection failed. This might be a port or API settings issue.",
           })
         );
       }, 5000);
@@ -72,4 +73,3 @@ export async function GET() {
     );
   }
 }
-

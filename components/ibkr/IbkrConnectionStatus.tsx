@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ConnectionStatus {
   authenticated: boolean;
@@ -120,7 +120,8 @@ export function IbkrConnectionStatus() {
               <p className="text-sm text-muted-foreground">{status?.message || "N/A"}</p>
               {!isConnected && (
                 <p className="text-orange-500 text-sm mt-2">
-                  Please ensure IB Gateway is running, fully connected, and accessible at https://localhost:5000
+                  Please ensure IB Gateway is running, fully connected, and accessible at
+                  https://localhost:5000
                 </p>
               )}
             </div>

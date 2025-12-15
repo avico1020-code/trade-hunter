@@ -6,7 +6,7 @@
 // זיהוי רמות תמיכה והתנגדות (אופקיות, דינמיות, וכו')
 // כל אסטרטגיה יכולה להשתמש בפונקציות האלה
 
-import { Candle } from "./double-top";
+import type { Candle } from "./double-top";
 
 // =========================
 // Types
@@ -69,8 +69,7 @@ export function findHorizontalSupportResistance(
         level.strength = Math.min(1, level.touches / 5); // max strength at 5 touches
 
         // עדכון הסוג לפי המחיר הנוכחי
-        const currentCandle =
-          candles[Math.floor(candidatePrices.indexOf(candidatePrice) / 2)];
+        const currentCandle = candles[Math.floor(candidatePrices.indexOf(candidatePrice) / 2)];
         if (currentCandle) {
           if (candidatePrice === currentCandle.low) {
             level.type = "SUPPORT";
@@ -86,14 +85,11 @@ export function findHorizontalSupportResistance(
 
     // יצירת רמה חדשה
     if (!foundLevel) {
-      const currentCandleIndex = Math.floor(
-        candidatePrices.indexOf(candidatePrice) / 2
-      );
+      const currentCandleIndex = Math.floor(candidatePrices.indexOf(candidatePrice) / 2);
       const currentCandle = candles[currentCandleIndex];
       if (!currentCandle) continue;
 
-      const levelType =
-        candidatePrice === currentCandle.low ? "SUPPORT" : "RESISTANCE";
+      const levelType = candidatePrice === currentCandle.low ? "SUPPORT" : "RESISTANCE";
 
       levels.set(candidatePrice, {
         price: candidatePrice,
@@ -108,9 +104,7 @@ export function findHorizontalSupportResistance(
   }
 
   // פילטור רק רמות עם מספר נגיעות מספק
-  const filteredLevels = Array.from(levels.values()).filter(
-    (level) => level.touches >= minTouches
-  );
+  const filteredLevels = Array.from(levels.values()).filter((level) => level.touches >= minTouches);
 
   // מיון לפי חוזק (strength)
   return filteredLevels.sort((a, b) => b.strength - a.strength);
@@ -204,8 +198,7 @@ export function findDynamicSupportResistance(
   const { type, period, lookback = candles.length } = options;
 
   const closes = candles.map((c) => c.close);
-  const maValues =
-    type === "SMA" ? calculateSMA(closes, period) : calculateEMA(closes, period);
+  const maValues = type === "SMA" ? calculateSMA(closes, period) : calculateEMA(closes, period);
 
   const lastMA = maValues[maValues.length - 1];
   if (!Number.isFinite(lastMA)) return null;
@@ -268,11 +261,7 @@ export function getPivotLevelsFromCandle(
   if (index < 1 || index >= candles.length) return [];
 
   const prevCandle = candles[index - 1];
-  const levels = calculatePivotLevels(
-    prevCandle.high,
-    prevCandle.low,
-    prevCandle.close
-  );
+  const levels = calculatePivotLevels(prevCandle.high, prevCandle.low, prevCandle.close);
 
   return [
     {
@@ -373,4 +362,3 @@ export function findPsychologicalLevels(
 
   return levels;
 }
-

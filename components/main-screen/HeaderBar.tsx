@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AppLogo } from "@/components/AppLogo";
+import { IbkrStatusIndicator } from "@/components/ibkr/IbkrStatusIndicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { IbkrStatusIndicator } from "@/components/ibkr/IbkrStatusIndicator";
 
 export function HeaderBar() {
   const router = useRouter();
@@ -80,12 +80,15 @@ export function HeaderBar() {
                 variant="ghost"
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-2 hover:bg-accent rounded-lg px-3 py-2 h-auto"
-                suppressHydrationWarning
+                suppressHydrationWarning={true}
               >
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center" suppressHydrationWarning>
+                <div
+                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+                  suppressHydrationWarning={true}
+                >
                   <User className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="text-sm font-medium" suppressHydrationWarning>
+                <span className="text-sm font-medium" suppressHydrationWarning={true}>
                   שלום, {user.firstName || user.emailAddresses[0]?.emailAddress.split("@")[0]}
                 </span>
               </Button>
@@ -130,10 +133,17 @@ export function HeaderBar() {
             </>
           ) : (
             <>
-              <Button variant="ghost" size="icon" aria-label="פרופיל" suppressHydrationWarning>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="פרופיל"
+                suppressHydrationWarning={true}
+              >
                 <User className="h-5 w-5" />
               </Button>
-              <span className="text-sm font-medium" suppressHydrationWarning>פרופיל</span>
+              <span className="text-sm font-medium" suppressHydrationWarning={true}>
+                פרופיל
+              </span>
             </>
           )}
         </div>

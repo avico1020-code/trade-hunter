@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Account Service
- * 
+ *
  * Manages account information and updates
  * - Account summary (net liquidation, cash, buying power, margin)
  * - Account updates subscription
@@ -35,7 +35,9 @@ export class IbkrAccountService {
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error(`Account summary timeout for ${accountId || "all accounts"} after 10 seconds`));
+        reject(
+          new Error(`Account summary timeout for ${accountId || "all accounts"} after 10 seconds`)
+        );
       }, 10000);
 
       const summary: Partial<AccountSummary> = {
@@ -128,7 +130,9 @@ export class IbkrAccountService {
         const finalSummary = summary as AccountSummary;
         this.accountSummaryCache.set(accountId || "ALL", finalSummary);
 
-        console.log(`[Account Service] ✅ Received account summary for ${accountId || "all accounts"}`);
+        console.log(
+          `[Account Service] ✅ Received account summary for ${accountId || "all accounts"}`
+        );
         resolve(finalSummary);
       };
 
@@ -149,8 +153,13 @@ export class IbkrAccountService {
       (client as any).once("error", onError);
 
       try {
-        console.log(`[Account Service] Requesting account summary for ${accountId || "all accounts"}...`);
-        (client as any).reqAccountSummary(0, "All", accountId); // reqId = 0, group = "All"
+        // Build tags string from required fields
+        const tags = requiredFields.join(",");
+        console.log(
+          `[Account Service] Requesting account summary for ${accountId || "all accounts"} with tags: ${tags}`
+        );
+        // reqAccountSummary(reqId, group, tags, accountId)
+        (client as any).reqAccountSummary(0, "All", tags, accountId);
       } catch (error) {
         clearTimeout(timeout);
         (client as any).removeListener("accountSummary", onAccountSummary);
@@ -178,18 +187,23 @@ export class IbkrAccountService {
     const client = connectionManager.getClient();
 
     try {
-      console.log(`[Account Service] Subscribing to account updates for ${accountId || "all accounts"}...`);
+      console.log(
+        `[Account Service] Subscribing to account updates for ${accountId || "all accounts"}...`
+      );
       (client as any).reqAccountUpdates(true, accountId); // true = subscribe
       this.subscribedAccounts.add(accountId || "ALL");
 
       // Set up account value handler
-      client.on("accountValue", (key: string, val: string, currency: string, accountName: string) => {
-        // Update cache when account values change
-        if (accountId === "" || accountName === accountId) {
-          // Trigger cache refresh
-          this.accountSummaryCache.delete(accountId || "ALL");
+      client.on(
+        "accountValue",
+        (key: string, val: string, currency: string, accountName: string) => {
+          // Update cache when account values change
+          if (accountId === "" || accountName === accountId) {
+            // Trigger cache refresh
+            this.accountSummaryCache.delete(accountId || "ALL");
+          }
         }
-      });
+      );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new Error(`Failed to subscribe to account updates: ${err.message}`);
@@ -212,7 +226,9 @@ export class IbkrAccountService {
 
     try {
       const client = connectionManager.getClient();
-      console.log(`[Account Service] Unsubscribing from account updates for ${accountId || "all accounts"}...`);
+      console.log(
+        `[Account Service] Unsubscribing from account updates for ${accountId || "all accounts"}...`
+      );
       (client as any).reqAccountUpdates(false, accountId); // false = unsubscribe
       this.subscribedAccounts.delete(accountId || "ALL");
     } catch (error) {
@@ -234,4 +250,3 @@ export class IbkrAccountService {
 export function getIbkrAccountService(): IbkrAccountService {
   return IbkrAccountService.getInstance();
 }
-

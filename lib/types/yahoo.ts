@@ -69,4 +69,3 @@ export interface HistoricalData {
   data: ChartPoint[];
   expiresAt: number;
 }
-

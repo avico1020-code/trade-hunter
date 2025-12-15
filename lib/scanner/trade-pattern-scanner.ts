@@ -98,10 +98,7 @@ export interface IPatternStrategy {
    * משמש רק את הסורק - לא מבצע כניסה/יציאה.
    * רק אומר האם התבנית קיימת ומה מצבה.
    */
-  detectPattern(
-    candles: Candle[],
-    indicators?: IndicatorSnapshot
-  ): PatternDetectionResult;
+  detectPattern(candles: Candle[], indicators?: IndicatorSnapshot): PatternDetectionResult;
 
   /**
    * Entry First - בדיקת תנאי כניסה ראשונה
@@ -254,10 +251,8 @@ export class TradePatternScanner {
     if (!this.config.enableDirectionFilter) return true;
 
     if (strategy.direction === "BOTH") return true;
-    if (symbolInfo.direction === "LONG" && strategy.direction === "LONG")
-      return true;
-    if (symbolInfo.direction === "SHORT" && strategy.direction === "SHORT")
-      return true;
+    if (symbolInfo.direction === "LONG" && strategy.direction === "LONG") return true;
+    if (symbolInfo.direction === "SHORT" && strategy.direction === "SHORT") return true;
 
     this.logInfo("[TradePatternScanner] strategy filtered by direction", {
       symbol: symbolInfo.symbol,
@@ -278,12 +273,12 @@ export class TradePatternScanner {
       return false;
     }
     const last = candles[candles.length - 1] as any;
-    
+
     // Validate candle structure
     if (!last || typeof last !== "object") {
       return false;
     }
-    
+
     // אם אין isClosed, נחזיר true כדי לא לחסום
     if (typeof last.isClosed === "boolean") {
       return last.isClosed;
@@ -298,10 +293,10 @@ export class TradePatternScanner {
     if (!candles || !Array.isArray(candles) || candles.length === 0) {
       return false;
     }
-    
+
     for (const candle of candles) {
       if (!candle || typeof candle !== "object") return false;
-      
+
       // Check required fields
       const required = ["time", "open", "high", "low", "close", "volume"];
       for (const field of required) {
@@ -309,14 +304,14 @@ export class TradePatternScanner {
         if (typeof candle[field as keyof Candle] !== "number") return false;
         if (!isFinite(candle[field as keyof Candle] as number)) return false;
       }
-      
+
       // Validate OHLC logic
       if (candle.high < candle.low) return false;
       if (candle.close > candle.high || candle.close < candle.low) return false;
       if (candle.open > candle.high || candle.open < candle.low) return false;
       if (candle.volume < 0) return false;
     }
-    
+
     return true;
   }
 
@@ -328,15 +323,12 @@ export class TradePatternScanner {
    */
   async start(): Promise<void> {
     try {
-      const all = await this.masterClient.getTopSymbols(
-        this.config.minMasterScore
-      );
+      const all = await this.masterClient.getTopSymbols(this.config.minMasterScore);
 
       if (!all || all.length === 0) {
-        this.logInfo(
-          "[TradePatternScanner] no symbols passed the minMasterScore threshold",
-          { minScore: this.config.minMasterScore }
-        );
+        this.logInfo("[TradePatternScanner] no symbols passed the minMasterScore threshold", {
+          minScore: this.config.minMasterScore,
+        });
         return;
       }
 
@@ -381,13 +373,10 @@ export class TradePatternScanner {
     for (const info of newTopN) {
       if (!currentSymbols.has(info.symbol)) {
         if (!this.validateSymbolInfo(info)) {
-          this.logWarn(
-            "[TradePatternScanner] Invalid symbol info, skipping",
-            {
-              symbol: info?.symbol,
-              info,
-            }
-          );
+          this.logWarn("[TradePatternScanner] Invalid symbol info, skipping", {
+            symbol: info?.symbol,
+            info,
+          });
           continue;
         }
         this.subscribeSymbol(info);
@@ -487,10 +476,7 @@ export class TradePatternScanner {
       }
 
       // אם המשתמש דרש נרות סגורים – נוודא שהנר האחרון סגור
-      if (
-        this.config.requireClosedCandle &&
-        !this.hasClosedLastCandle(candles)
-      ) {
+      if (this.config.requireClosedCandle && !this.hasClosedLastCandle(candles)) {
         return;
       }
 
@@ -501,10 +487,10 @@ export class TradePatternScanner {
           continue;
         }
 
-          // Set context for strategies that need master info (e.g., LiquiditySweepBreakout)
-          if ("setContextForSymbol" in strat && typeof strat.setContextForSymbol === "function") {
-            (strat as any).setContextForSymbol(symbol, info, (this.config as any).timeframe || "5m");
-          }
+        // Set context for strategies that need master info (e.g., LiquiditySweepBreakout)
+        if ("setContextForSymbol" in strat && typeof strat.setContextForSymbol === "function") {
+          (strat as any).setContextForSymbol(symbol, info, (this.config as any).timeframe || "5m");
+        }
 
         let patternState: PatternDetectionResult;
 
@@ -685,24 +671,16 @@ export class TradePatternScanner {
         }
 
         const master = masterOverrides?.[item.symbol];
-        const r = await this.scanHistorical(
-          item.symbol,
-          item.candles,
-          item.indicators,
-          master
-        );
+        const r = await this.scanHistorical(item.symbol, item.candles, item.indicators, master);
         results.push(...r);
       } catch (error) {
         this.logError("[TradePatternScanner.scanHistoricalBatch] Error processing item", {
           symbol: item?.symbol,
           error: error instanceof Error ? error.message : String(error),
         });
-        // Continue with next item instead of failing entire batch
-        continue;
       }
     }
 
     return results;
   }
 }
-

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMutation, useQuery } from "convex/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useToast } from "@/hooks/use-toast";
@@ -97,7 +97,7 @@ export function StocksTable({
         duration: 3000,
       });
       setNewStockSymbol("");
-    setIsAdding(false);
+      setIsAdding(false);
     } catch (error) {
       toast({
         title: "שגיאה",
@@ -257,9 +257,7 @@ function StockRow({ stock, selected, onSelect, onDelete }: StockRowProps) {
         {stock.symbol}
         {source && (
           <span
-            className={`text-xs ml-2 ${
-              source === "ibkr" ? "text-green-500" : "text-blue-500"
-            }`}
+            className={`text-xs ml-2 ${source === "ibkr" ? "text-green-500" : "text-blue-500"}`}
             title={source === "ibkr" ? "IBKR Real-time" : "Yahoo Finance"}
           >
             {source === "ibkr" ? "📡" : "📰"}

@@ -1,13 +1,13 @@
 "use client";
 
+import { useAction } from "convex/react";
 import { X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRealtimeMarketData } from "@/lib/hooks/useRealtimeMarketData";
-import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useEffect, useState } from "react";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useRealtimeMarketData } from "@/lib/hooks/useRealtimeMarketData";
 
 interface MiniSparklineProps {
   data: number[];
@@ -63,29 +63,36 @@ export function IndexPanel({ id, symbol, onDelete }: IndexPanelProps) {
     if (symbol && price > 0 && historicalData.length === 0) {
       // Only fetch once when price becomes available
       let cancelled = false;
-      
+
       fetchHistorical({ symbol, period: "1y" })
         .then((result) => {
           if (cancelled) return;
-          
+
           if (result && result.chartData && result.chartData.length > 0) {
             setHistoricalData(result.chartData);
-            console.log(`📊 [IndexPanel] Loaded ${result.chartData.length} historical points for ${symbol} (Yahoo Finance)`);
+            console.log(
+              `📊 [IndexPanel] Loaded ${result.chartData.length} historical points for ${symbol} (Yahoo Finance)`
+            );
           }
         })
         .catch((error) => {
           if (cancelled) return;
-          
+
           // Handle Convex connection errors gracefully
           const errorMessage = error instanceof Error ? error.message : String(error);
-          if (errorMessage.includes("Connection lost") || errorMessage.includes("Connection closed")) {
-            console.warn(`⚠️ [IndexPanel] Convex connection lost for ${symbol} historical data - will retry later`);
+          if (
+            errorMessage.includes("Connection lost") ||
+            errorMessage.includes("Connection closed")
+          ) {
+            console.warn(
+              `⚠️ [IndexPanel] Convex connection lost for ${symbol} historical data - will retry later`
+            );
             // Don't show error to user, just log it
           } else {
             console.error(`❌ [IndexPanel] Error fetching historical data for ${symbol}:`, error);
           }
         });
-      
+
       return () => {
         cancelled = true;
       };
@@ -101,9 +108,7 @@ export function IndexPanel({ id, symbol, onDelete }: IndexPanelProps) {
             {source && (
               <span
                 className={`text-xs font-medium ${
-                  source === "ibkr"
-                    ? "text-green-500"
-                    : "text-blue-500"
+                  source === "ibkr" ? "text-green-500" : "text-blue-500"
                 }`}
               >
                 {source === "ibkr" ? "📡 IBKR Real-time" : "📰 Yahoo Finance"}
@@ -126,9 +131,7 @@ export function IndexPanel({ id, symbol, onDelete }: IndexPanelProps) {
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm">מחיר</span>
             <span
-              className={`font-semibold text-lg ${
-                isPositive ? "text-green-600" : "text-red-600"
-              }`}
+              className={`font-semibold text-lg ${isPositive ? "text-green-600" : "text-red-600"}`}
             >
               {isLoading ? "..." : price > 0 ? `$${price.toFixed(2)}` : "N/A"}
             </span>
@@ -145,9 +148,7 @@ export function IndexPanel({ id, symbol, onDelete }: IndexPanelProps) {
 
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm">שינוי</span>
-            <span
-              className={`font-semibold ${isPositive ? "text-green-600" : "text-red-600"}`}
-            >
+            <span className={`font-semibold ${isPositive ? "text-green-600" : "text-red-600"}`}>
               {isLoading
                 ? "..."
                 : price > 0
@@ -160,4 +161,3 @@ export function IndexPanel({ id, symbol, onDelete }: IndexPanelProps) {
     </Card>
   );
 }
-

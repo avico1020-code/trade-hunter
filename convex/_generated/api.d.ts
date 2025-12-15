@@ -26,11 +26,7 @@ import type * as users from "../users.js";
 import type * as yahooFinance from "../yahooFinance.js";
 import type * as yahooFinanceQueries from "../yahooFinanceQueries.js";
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
+import type { ApiFromModules, FilterApi, FunctionReference } from "convex/server";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -61,10 +57,7 @@ declare const fullApi: ApiFromModules<{
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 
-export declare const api: FilterApi<
-  typeof fullApiWithMounts,
-  FunctionReference<any, "public">
->;
+export declare const api: FilterApi<typeof fullApiWithMounts, FunctionReference<any, "public">>;
 export declare const internal: FilterApi<
   typeof fullApiWithMounts,
   FunctionReference<any, "internal">

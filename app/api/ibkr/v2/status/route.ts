@@ -1,6 +1,6 @@
 /**
  * IBKR Integration Layer - Status Endpoint (v2)
- * 
+ *
  * Returns connection status from the new IBKR integration layer
  */
 
@@ -37,4 +37,3 @@ export async function GET() {
     );
   }
 }
-

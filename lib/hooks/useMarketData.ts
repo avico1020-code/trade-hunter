@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { IbkrMarketDataSnapshot } from "@/lib/types/ibkr";
 
 interface MarketDataResult {
@@ -72,14 +72,18 @@ export function useMarketData(symbol: string | null): MarketDataResult {
           source: "ibkr",
         });
 
-        console.log(`✅ [useMarketData] ${symbol}: $${lastPrice.toFixed(2)} (${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%)`);
+        console.log(
+          `✅ [useMarketData] ${symbol}: $${lastPrice.toFixed(2)} (${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%)`
+        );
       } catch (error) {
         console.error(`❌ [useMarketData] Error parsing data for ${symbol}:`, error);
       }
     };
 
     eventSource.onerror = () => {
-      console.warn(`⚠️ [useMarketData] Stream error for ${symbol}, falling back to Yahoo Finance...`);
+      console.warn(
+        `⚠️ [useMarketData] Stream error for ${symbol}, falling back to Yahoo Finance...`
+      );
       eventSource.close();
 
       // Fallback to Yahoo Finance
@@ -94,7 +98,9 @@ export function useMarketData(symbol: string | null): MarketDataResult {
   // Fallback to Yahoo Finance
   const fetchYahooFinanceData = async (sym: string) => {
     try {
-      const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`);
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`
+      );
       const json = await response.json();
       const quote = json.chart?.result?.[0];
 
@@ -116,7 +122,9 @@ export function useMarketData(symbol: string | null): MarketDataResult {
           source: "yahoo",
         });
 
-        console.log(`📰 [useMarketData] ${sym}: $${currentPrice.toFixed(2)} (${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%) - Yahoo Finance`);
+        console.log(
+          `📰 [useMarketData] ${sym}: $${currentPrice.toFixed(2)} (${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%) - Yahoo Finance`
+        );
       }
     } catch (error) {
       console.error(`❌ [useMarketData] Yahoo Finance error for ${sym}:`, error);
@@ -130,4 +138,3 @@ export function useMarketData(symbol: string | null): MarketDataResult {
 
   return data;
 }
-

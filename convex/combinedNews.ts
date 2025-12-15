@@ -1,7 +1,8 @@
 // Combined news from multiple sources (Yahoo Finance + Finviz)
-import { action } from "./_generated/server";
-import { internal } from "./_generated/api";
+
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { action } from "./_generated/server";
 
 // Fetch and combine market news from all sources
 export const fetchCombinedMarketNews = action({
@@ -15,9 +16,7 @@ export const fetchCombinedMarketNews = action({
       ]);
 
       // Combine and sort by publishedAt (newest first)
-      const combined = [...yahooNews, ...finvizNews].sort(
-        (a, b) => b.publishedAt - a.publishedAt
-      );
+      const combined = [...yahooNews, ...finvizNews].sort((a, b) => b.publishedAt - a.publishedAt);
 
       return combined.slice(0, limit);
     } catch (error) {
@@ -40,9 +39,7 @@ export const fetchCombinedStockNews = action({
       ]);
 
       // Combine and sort by publishedAt (newest first)
-      const combined = [...yahooNews, ...finvizNews].sort(
-        (a, b) => b.publishedAt - a.publishedAt
-      );
+      const combined = [...yahooNews, ...finvizNews].sort((a, b) => b.publishedAt - a.publishedAt);
 
       // Remove duplicates based on title similarity
       const unique = [];
@@ -64,4 +61,3 @@ export const fetchCombinedStockNews = action({
     }
   },
 });
-

@@ -1,6 +1,7 @@
 // Temporary file to clear Finviz cache - DELETE AFTER USE
-import { action } from "./_generated/server";
+
 import { internal } from "./_generated/api";
+import { action } from "./_generated/server";
 
 export const clearFinvizCacheNow = action({
   handler: async (ctx) => {
@@ -8,4 +9,3 @@ export const clearFinvizCacheNow = action({
     return result;
   },
 });
-

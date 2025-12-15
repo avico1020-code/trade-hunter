@@ -1,11 +1,11 @@
 "use client";
 
+import { useAction, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLogo } from "@/components/AppLogo";
 import { AIChatPanel } from "@/components/main-screen/AIChatPanel";
 import { Button } from "@/components/ui/button";
-import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRealtimeMarketData } from "@/lib/hooks/useRealtimeMarketData";
 
@@ -235,10 +235,7 @@ function SegmentedMenu({ activeTab }: { activeTab: StatisticsTab }) {
   );
 }
 
-function LeadingIndexesRow({
-  scale,
-  data,
-}: ScaleProps & { data: LeadingIndexData[] }) {
+function LeadingIndexesRow({ scale, data }: ScaleProps & { data: LeadingIndexData[] }) {
   const cardHeight = 140 * scale;
   const gap = 12 * scale;
   const boxHeight = 52 * scale;
@@ -284,7 +281,7 @@ function LeadingIndexesRow({
               </span>
               <span style={{ color: "#959595", fontSize: `${priceSize}px` }}>{item.price}</span>
             </div>
-            
+
             {/* Sparkline Chart */}
             <div
               style={{
@@ -316,7 +313,7 @@ function LeadingIndexesRow({
                 />
               )}
             </div>
-            
+
             <div
               style={{
                 color: sparklineColor,
@@ -333,10 +330,7 @@ function LeadingIndexesRow({
   );
 }
 
-function DigitalCurrenciesRow({
-  scale,
-  data,
-}: ScaleProps & { data: DigitalCurrencyData[] }) {
+function DigitalCurrenciesRow({ scale, data }: ScaleProps & { data: DigitalCurrencyData[] }) {
   const containerHeight = 130 * scale;
   const gap = 12 * scale;
   const cardHeight = 130 * scale;
@@ -382,7 +376,7 @@ function DigitalCurrenciesRow({
               <span style={{ fontSize: `${textSize}px` }}>{currency.symbol}</span>
               <span style={{ fontSize: `${textSize}px` }}>{currency.price}</span>
             </div>
-            
+
             {/* Sparkline Chart */}
             <div
               style={{
@@ -415,11 +409,8 @@ function DigitalCurrenciesRow({
                 />
               )}
             </div>
-            
-            <div
-              className="text-xs font-semibold"
-              style={{ color: sparklineColor }}
-            >
+
+            <div className="text-xs font-semibold" style={{ color: sparklineColor }}>
               {currency.change}
             </div>
           </div>
@@ -639,16 +630,18 @@ export default function StatisticsPage() {
   const spyData = useRealtimeMarketData("SPY");
   const qqqData = useRealtimeMarketData("QQQ");
   const iwmData = useRealtimeMarketData("IWM");
-  
+
   const btcData = useRealtimeMarketData("BTC-USD");
   const ethData = useRealtimeMarketData("ETH-USD");
   const solData = useRealtimeMarketData("SOL-USD");
 
   // State for chart data (from Yahoo Finance)
   const [leadingIndexesCharts, setLeadingIndexesCharts] = useState<Record<string, number[]>>({});
-  const [digitalCurrenciesCharts, setDigitalCurrenciesCharts] = useState<Record<string, number[]>>({});
+  const [digitalCurrenciesCharts, setDigitalCurrenciesCharts] = useState<Record<string, number[]>>(
+    {}
+  );
   const [sectorsCharts, setSectorsCharts] = useState<Record<string, number[]>>({});
-  
+
   const [currencyRates, setCurrencyRates] = useState({
     dollar: "0.00",
     euro: "0.00",
@@ -719,7 +712,7 @@ export default function StatisticsPage() {
         // Try IBKR first with timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout
-        
+
         let ibkrRes: Response;
         try {
           ibkrRes = await fetch(`/api/ibkr/market-data/snapshot?symbol=${sym}`, {
@@ -728,24 +721,29 @@ export default function StatisticsPage() {
           clearTimeout(timeoutId);
         } catch (fetchError: any) {
           clearTimeout(timeoutId);
-          if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
-            console.warn(`⚠️ [Statistics] IBKR request timeout for ${sym} - falling back to Yahoo Finance`);
+          if (fetchError.name === "AbortError" || fetchError.message?.includes("aborted")) {
+            console.warn(
+              `⚠️ [Statistics] IBKR request timeout for ${sym} - falling back to Yahoo Finance`
+            );
             // Don't throw - fall through to Yahoo Finance fallback
             await fetchSectorYahoo({ symbol: sym }).catch(console.error);
             return;
           } else {
-            console.warn(`⚠️ [Statistics] IBKR fetch failed for ${sym}:`, fetchError.message || String(fetchError));
+            console.warn(
+              `⚠️ [Statistics] IBKR fetch failed for ${sym}:`,
+              fetchError.message || String(fetchError)
+            );
             // Fall through to Yahoo Finance fallback
             throw fetchError;
           }
         }
-        
+
         if (ibkrRes.ok) {
           const snapshot = await ibkrRes.json().catch((jsonError) => {
             console.error(`❌ [Statistics] Failed to parse JSON for ${sym}:`, jsonError);
             throw new Error("Invalid JSON response from IBKR");
           });
-          
+
           const lastPrice = parseFloat(snapshot["31"] || "0");
           const closePrice = parseFloat(snapshot["7295"] || "0");
           const volume = parseFloat(snapshot["7308"] || "0");
@@ -764,11 +762,15 @@ export default function StatisticsPage() {
             });
             return;
           } else {
-            console.warn(`⚠️ [Statistics] IBKR returned invalid data for ${sym} (price: ${lastPrice}, close: ${closePrice})`);
+            console.warn(
+              `⚠️ [Statistics] IBKR returned invalid data for ${sym} (price: ${lastPrice}, close: ${closePrice})`
+            );
           }
         } else {
           const errorText = await ibkrRes.text().catch(() => "");
-          console.warn(`⚠️ [Statistics] IBKR HTTP ${ibkrRes.status} for ${sym}: ${errorText.substring(0, 100)}`);
+          console.warn(
+            `⚠️ [Statistics] IBKR HTTP ${ibkrRes.status} for ${sym}: ${errorText.substring(0, 100)}`
+          );
         }
 
         // Fallback to Yahoo Finance
@@ -894,25 +896,28 @@ export default function StatisticsPage() {
       {
         symbol: "SPY",
         price: spyData.price > 0 ? `$${spyData.price.toFixed(2)}` : "0.00",
-        change: spyData.changePercent !== 0 
-          ? `${spyData.changePercent >= 0 ? "+" : ""}${spyData.changePercent.toFixed(2)}%`
-          : "0.00%",
+        change:
+          spyData.changePercent !== 0
+            ? `${spyData.changePercent >= 0 ? "+" : ""}${spyData.changePercent.toFixed(2)}%`
+            : "0.00%",
         chartData: leadingIndexesCharts["SPY"] || [],
       },
       {
         symbol: "QQQ",
         price: qqqData.price > 0 ? `$${qqqData.price.toFixed(2)}` : "0.00",
-        change: qqqData.changePercent !== 0
-          ? `${qqqData.changePercent >= 0 ? "+" : ""}${qqqData.changePercent.toFixed(2)}%`
-          : "0.00%",
+        change:
+          qqqData.changePercent !== 0
+            ? `${qqqData.changePercent >= 0 ? "+" : ""}${qqqData.changePercent.toFixed(2)}%`
+            : "0.00%",
         chartData: leadingIndexesCharts["QQQ"] || [],
       },
       {
         symbol: "IWM",
         price: iwmData.price > 0 ? `$${iwmData.price.toFixed(2)}` : "0.00",
-        change: iwmData.changePercent !== 0
-          ? `${iwmData.changePercent >= 0 ? "+" : ""}${iwmData.changePercent.toFixed(2)}%`
-          : "0.00%",
+        change:
+          iwmData.changePercent !== 0
+            ? `${iwmData.changePercent >= 0 ? "+" : ""}${iwmData.changePercent.toFixed(2)}%`
+            : "0.00%",
         chartData: leadingIndexesCharts["IWM"] || [],
       },
     ];
@@ -923,41 +928,47 @@ export default function StatisticsPage() {
     return [
       {
         symbol: "BTC",
-        price: btcData.price > 0
-          ? btcData.price.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          : "0",
-        change: btcData.changePercent !== 0
-          ? `${btcData.changePercent >= 0 ? "+" : ""}${btcData.changePercent.toFixed(2)}%`
-          : "0.00%",
+        price:
+          btcData.price > 0
+            ? btcData.price.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : "0",
+        change:
+          btcData.changePercent !== 0
+            ? `${btcData.changePercent >= 0 ? "+" : ""}${btcData.changePercent.toFixed(2)}%`
+            : "0.00%",
         chartData: digitalCurrenciesCharts["BTC"] || [],
       },
       {
         symbol: "ETH",
-        price: ethData.price > 0
-          ? ethData.price.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          : "0",
-        change: ethData.changePercent !== 0
-          ? `${ethData.changePercent >= 0 ? "+" : ""}${ethData.changePercent.toFixed(2)}%`
-          : "0.00%",
+        price:
+          ethData.price > 0
+            ? ethData.price.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : "0",
+        change:
+          ethData.changePercent !== 0
+            ? `${ethData.changePercent >= 0 ? "+" : ""}${ethData.changePercent.toFixed(2)}%`
+            : "0.00%",
         chartData: digitalCurrenciesCharts["ETH"] || [],
       },
       {
         symbol: "SOL",
-        price: solData.price > 0
-          ? solData.price.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          : "0",
-        change: solData.changePercent !== 0
-          ? `${solData.changePercent >= 0 ? "+" : ""}${solData.changePercent.toFixed(2)}%`
-          : "0.00%",
+        price:
+          solData.price > 0
+            ? solData.price.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : "0",
+        change:
+          solData.changePercent !== 0
+            ? `${solData.changePercent >= 0 ? "+" : ""}${solData.changePercent.toFixed(2)}%`
+            : "0.00%",
         chartData: digitalCurrenciesCharts["SOL"] || [],
       },
     ];
@@ -966,11 +977,11 @@ export default function StatisticsPage() {
   // Build sectors array from hooks data
   const sectorsData = useMemo(() => {
     if (!sectorsMarketData) return sectors;
-    
+
     return sectors.map((sector) => {
       const marketData = sectorsMarketData[sector.symbol];
       const chartData = sectorsCharts[sector.symbol] || sector.history;
-      
+
       if (marketData) {
         return {
           ...sector,
@@ -979,7 +990,7 @@ export default function StatisticsPage() {
           history: chartData,
         };
       }
-      
+
       return {
         ...sector,
         history: chartData,

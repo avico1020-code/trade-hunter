@@ -1,6 +1,7 @@
 // Query to get all stocks from user's lists
-import { query } from "./_generated/server";
+
 import { v } from "convex/values";
+import { query } from "./_generated/server";
 
 export const getAllUserStocks = query({
   args: { userId: v.string() },
@@ -39,4 +40,3 @@ export const getAllUserStocks = query({
     return allStocks;
   },
 });
-

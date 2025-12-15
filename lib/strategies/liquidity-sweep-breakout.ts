@@ -8,13 +8,13 @@
 // Structure: Pivot -> Sweep -> Confirmed Breakout
 // Direction-aware: works only with Master direction
 
-import {
-  IPatternStrategy,
+import type {
   IndicatorSnapshot,
-  PatternDetectionResult,
+  IPatternStrategy,
   MasterSymbolInfo,
+  PatternDetectionResult,
 } from "../scanner/trade-pattern-scanner";
-import { Candle } from "./double-top";
+import type { Candle } from "./double-top";
 
 // ============ Type Definitions (using project types) ============
 
@@ -135,10 +135,7 @@ export class LiquiditySweepBreakoutStrategy {
   // =========================
   // 1) זיהוי תבנית Liquidity Sweep Breakout
   // =========================
-  detectPattern(
-    candles: Candle[],
-    context: StrategyContext
-  ): LiquiditySweepPatternState {
+  detectPattern(candles: Candle[], context: StrategyContext): LiquiditySweepPatternState {
     if (candles.length < Math.max(this.slowEmaPeriod, this.atrPeriod) + 10) {
       return { patternFound: false, reason: "not-enough-data" };
     }
@@ -191,14 +188,8 @@ export class LiquiditySweepBreakoutStrategy {
     }
 
     const structureScore = this.computeStructureScore(pattern, atr);
-    const volatilityScore = this.computeVolatilityScore(
-      breakoutAtr,
-      pattern.breakoutLevel
-    );
-    const qualityScore = Math.max(
-      0,
-      Math.min(1, 0.6 * structureScore + 0.4 * volatilityScore)
-    );
+    const volatilityScore = this.computeVolatilityScore(breakoutAtr, pattern.breakoutLevel);
+    const qualityScore = Math.max(0, Math.min(1, 0.6 * structureScore + 0.4 * volatilityScore));
 
     return {
       patternFound: true,
@@ -220,10 +211,7 @@ export class LiquiditySweepBreakoutStrategy {
   // =========================
   // 2) תנאי כניסה
   // =========================
-  entry(
-    candles: Candle[],
-    state: LiquiditySweepPatternState
-  ): EntrySignal {
+  entry(candles: Candle[], state: LiquiditySweepPatternState): EntrySignal {
     if (!state.patternFound || state.breakoutIndex == null) {
       return { enter: false, leg: 1 };
     }
@@ -255,11 +243,7 @@ export class LiquiditySweepBreakoutStrategy {
       enter: true,
       leg: 1,
       price: entryPrice,
-      refIndices: [
-        state.pivotIndex!,
-        state.sweepIndex!,
-        state.breakoutIndex!,
-      ],
+      refIndices: [state.pivotIndex!, state.sweepIndex!, state.breakoutIndex!],
       meta: {
         direction: state.direction,
         breakoutLevel: state.breakoutLevel,
@@ -270,11 +254,7 @@ export class LiquiditySweepBreakoutStrategy {
   // =========================
   // 3) תנאי יציאה
   // =========================
-  exit(
-    candles: Candle[],
-    state: LiquiditySweepPatternState,
-    entryPrice: number
-  ): ExitSignal {
+  exit(candles: Candle[], state: LiquiditySweepPatternState, entryPrice: number): ExitSignal {
     if (!state.patternFound) {
       return { exit: false, leg: 1 };
     }
@@ -312,10 +292,7 @@ export class LiquiditySweepBreakoutStrategy {
   // =========================
   // 4) חישוב סטופים
   // =========================
-  stops(
-    candles: Candle[],
-    state: LiquiditySweepPatternState
-  ): StopLevels | null {
+  stops(candles: Candle[], state: LiquiditySweepPatternState): StopLevels | null {
     if (!state.patternFound || state.breakoutIndex == null) {
       return null;
     }
@@ -328,10 +305,8 @@ export class LiquiditySweepBreakoutStrategy {
     // Stop is placed below the lower of pivot/sweep for LONG, above the higher for SHORT
     const initialStopPrice =
       state.direction === "LONG"
-        ? Math.min(state.sweepLevel!, state.pivotLevel!) -
-          atr * this.bufferAtrMultiplier
-        : Math.max(state.sweepLevel!, state.pivotLevel!) +
-          atr * this.bufferAtrMultiplier;
+        ? Math.min(state.sweepLevel!, state.pivotLevel!) - atr * this.bufferAtrMultiplier
+        : Math.max(state.sweepLevel!, state.pivotLevel!) + atr * this.bufferAtrMultiplier;
 
     return {
       initial: initialStopPrice,
@@ -397,10 +372,8 @@ export class LiquiditySweepBreakoutStrategy {
 
     const stopPrice =
       pattern.direction === "LONG"
-        ? Math.min(pattern.sweepLevel, pattern.pivotLevel) -
-          breakoutAtr * this.bufferAtrMultiplier
-        : Math.max(pattern.sweepLevel, pattern.pivotLevel) +
-          breakoutAtr * this.bufferAtrMultiplier;
+        ? Math.min(pattern.sweepLevel, pattern.pivotLevel) - breakoutAtr * this.bufferAtrMultiplier
+        : Math.max(pattern.sweepLevel, pattern.pivotLevel) + breakoutAtr * this.bufferAtrMultiplier;
 
     const riskPerShare = Math.abs(entryPrice - stopPrice);
     if (!Number.isFinite(riskPerShare) || riskPerShare <= 0) {
@@ -409,14 +382,8 @@ export class LiquiditySweepBreakoutStrategy {
 
     // 7) Quality score (simple heuristic; you can enhance)
     const structureScore = this.computeStructureScore(pattern, atr);
-    const volatilityScore = this.computeVolatilityScore(
-      breakoutAtr,
-      pattern.breakoutLevel
-    );
-    const qualityScore = Math.max(
-      0,
-      Math.min(1, 0.6 * structureScore + 0.4 * volatilityScore)
-    );
+    const volatilityScore = this.computeVolatilityScore(breakoutAtr, pattern.breakoutLevel);
+    const qualityScore = Math.max(0, Math.min(1, 0.6 * structureScore + 0.4 * volatilityScore));
 
     // 8) Build final PatternSignal
     const metadata: PatternMetadata = {
@@ -530,17 +497,15 @@ export class LiquiditySweepBreakoutStrategy {
     atr: number[],
     trendDirection: Direction,
     masterDirection: Direction
-  ):
-    | {
-        direction: Direction;
-        pivotIndex: number;
-        sweepIndex: number;
-        breakoutIndex: number;
-        pivotLevel: number;
-        sweepLevel: number;
-        breakoutLevel: number;
-      }
-    | null {
+  ): {
+    direction: Direction;
+    pivotIndex: number;
+    sweepIndex: number;
+    breakoutIndex: number;
+    pivotLevel: number;
+    sweepLevel: number;
+    breakoutLevel: number;
+  } | null {
     const lastIndex = candles.length - 1;
     const mainDirection: Direction =
       masterDirection === trendDirection ? masterDirection : trendDirection;
@@ -579,17 +544,15 @@ export class LiquiditySweepBreakoutStrategy {
     candles: Candle[],
     pivot: { index: number; type: "HIGH" | "LOW"; price: number },
     atr: number[]
-  ):
-    | {
-        direction: Direction;
-        pivotIndex: number;
-        sweepIndex: number;
-        breakoutIndex: number;
-        pivotLevel: number;
-        sweepLevel: number;
-        breakoutLevel: number;
-      }
-    | null {
+  ): {
+    direction: Direction;
+    pivotIndex: number;
+    sweepIndex: number;
+    breakoutIndex: number;
+    pivotLevel: number;
+    sweepLevel: number;
+    breakoutLevel: number;
+  } | null {
     const pivotIndex = pivot.index;
     const pivotLow = pivot.price;
 
@@ -647,17 +610,15 @@ export class LiquiditySweepBreakoutStrategy {
     candles: Candle[],
     pivot: { index: number; type: "HIGH" | "LOW"; price: number },
     atr: number[]
-  ):
-    | {
-        direction: Direction;
-        pivotIndex: number;
-        sweepIndex: number;
-        breakoutIndex: number;
-        pivotLevel: number;
-        sweepLevel: number;
-        breakoutLevel: number;
-      }
-    | null {
+  ): {
+    direction: Direction;
+    pivotIndex: number;
+    sweepIndex: number;
+    breakoutIndex: number;
+    pivotLevel: number;
+    sweepLevel: number;
+    breakoutLevel: number;
+  } | null {
     const pivotIndex = pivot.index;
     const pivotHigh = pivot.price;
 
@@ -711,62 +672,32 @@ export class LiquiditySweepBreakoutStrategy {
   }
 
   // --------- Indicator Utilities ---------
+  // Using centralized indicators library
 
   private computeEMA(values: number[], period: number): number[] {
-    const result = new Array(values.length).fill(NaN);
-    if (values.length < period) return result;
-
-    // simple MA for first EMA seed
-    let sum = 0;
-    for (let i = 0; i < period; i++) sum += values[i];
-    let prevEma = sum / period;
-    result[period - 1] = prevEma;
-
-    const k = 2 / (period + 1);
-    for (let i = period; i < values.length; i++) {
-      const ema = values[i] * k + prevEma * (1 - k);
-      result[i] = ema;
-      prevEma = ema;
-    }
-
-    return result;
+    // Use centralized EMA calculation
+    const Indicators = require("../indicators");
+    return Indicators.EMAArray(values, period);
   }
 
-  private computeATR(
-    highs: number[],
-    lows: number[],
-    closes: number[],
-    period: number
-  ): number[] {
-    const n = highs.length;
-    const tr: number[] = new Array(n).fill(NaN);
-    const atr: number[] = new Array(n).fill(NaN);
-    if (n < period + 1) return atr;
+  private computeATR(highs: number[], lows: number[], closes: number[], period: number): number[] {
+    // Use centralized ATR calculation
+    const Indicators = require("../indicators");
 
-    for (let i = 1; i < n; i++) {
-      const high = highs[i];
-      const low = lows[i];
-      const prevClose = closes[i - 1];
-      const tr1 = high - low;
-      const tr2 = Math.abs(high - prevClose);
-      const tr3 = Math.abs(low - prevClose);
-      tr[i] = Math.max(tr1, tr2, tr3);
+    // Convert to Candle format for ATR calculation
+    const candles: Candle[] = [];
+    for (let i = 0; i < highs.length; i++) {
+      candles.push({
+        time: "", // Not needed for ATR
+        open: closes[i], // Not needed for ATR
+        high: highs[i],
+        low: lows[i],
+        close: closes[i],
+        volume: 0, // Not needed for ATR
+      });
     }
 
-    // first ATR as simple average
-    let sum = 0;
-    for (let i = 1; i <= period; i++) sum += tr[i];
-    let prevAtr = sum / period;
-    atr[period] = prevAtr;
-
-    const alpha = 1 / period;
-    for (let i = period + 1; i < n; i++) {
-      const currentAtr = alpha * tr[i] + (1 - alpha) * prevAtr;
-      atr[i] = currentAtr;
-      prevAtr = currentAtr;
-    }
-
-    return atr;
+    return Indicators.ATRArray(candles, period);
   }
 
   // --------- Quality scoring helpers ---------
@@ -843,10 +774,7 @@ export class LiquiditySweepBreakoutPatternStrategy implements IPatternStrategy {
     this.masterInfoMap.delete(symbol);
   }
 
-  detectPattern(
-    candles: Candle[],
-    indicators?: IndicatorSnapshot
-  ): PatternDetectionResult {
+  detectPattern(candles: Candle[], indicators?: IndicatorSnapshot): PatternDetectionResult {
     // Extract symbol from candles (first candle or last)
     if (candles.length === 0) {
       return {
@@ -858,7 +786,7 @@ export class LiquiditySweepBreakoutPatternStrategy implements IPatternStrategy {
     // Try to get master info from map
     // The scanner should call setContextForSymbol before detectPattern
     let masterInfo: MasterSymbolInfo | null = null;
-    
+
     if (this.masterInfoMap.size === 1) {
       // Most common case: single symbol being scanned
       masterInfo = Array.from(this.masterInfoMap.values())[0];
@@ -887,7 +815,7 @@ export class LiquiditySweepBreakoutPatternStrategy implements IPatternStrategy {
 
     // Use the new modular structure: detectPattern -> entry -> stops
     const state = this.impl.detectPattern(candles, context);
-    
+
     if (!state.patternFound) {
       return {
         patternFound: false,
@@ -942,4 +870,3 @@ export class LiquiditySweepBreakoutPatternStrategy implements IPatternStrategy {
     return result;
   }
 }
-

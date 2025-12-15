@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 /**
  * WebSocket handler for real-time market data streaming from IB Gateway
@@ -55,4 +55,3 @@ export async function GET(request: NextRequest) {
   // For edge runtime or non-Node.js environments
   return new Response("WebSocket not supported in this environment", { status: 503 });
 }
-

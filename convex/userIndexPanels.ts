@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Get user's index panels
 export const getUserIndexPanels = query({
@@ -69,4 +69,3 @@ export const deleteIndexPanel = mutation({
     await ctx.db.delete(panelId);
   },
 });
-
