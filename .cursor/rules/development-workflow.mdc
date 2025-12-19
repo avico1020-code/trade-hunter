@@ -1,0 +1,56 @@
+---
+description: Development workflow and tooling guidelines
+---
+
+# Development Workflow
+
+## Package Manager
+
+- **Use Bun**: This project uses Bun as the package manager
+- **Commands**: Always use `bun` instead of `npm`, `yarn`, or `pnpm`
+- **Installation**: `bun install` for dependencies
+- **Scripts**: Run scripts with `bun run <script-name>`
+
+## Available Scripts
+
+From [package.json](mdc:package.json):
+
+- `bun run dev` - Start development server with Turbopack
+- `bun run build` - Build for production with Turbopack
+- `bun run start` - Start production server
+- `bun run lint` - Run Biome linter
+- `bun run format` - Format code with Biome
+- `bun run check` - Run Biome checks
+- `bun run check:fix` - Run Biome checks and fix issues
+
+## Code Quality Tools
+
+### Biome Configuration
+
+- **Linting**: Configured in [biome.json](mdc:biome.json)
+- **Formatting**: Automatic code formatting
+- **Import Organization**: Auto-organize imports
+- **Rules**: Strict rules with some exceptions for React patterns
+
+### Pre-commit Workflow
+
+1. Run `bun run check:fix` before committing
+2. Ensure all TypeScript errors are resolved
+3. Verify RTL layout works correctly
+4. Test authentication flows
+
+## Development Environment
+
+- **Next.js 15**: Uses App Router and Turbopack
+- **TypeScript**: Strict mode enabled
+- **Hot Reload**: Fast refresh with Turbopack
+- **Environment**: Load `.env.local` for development variables
+
+## Best Practices
+
+- Use TypeScript strict mode
+- Follow Biome formatting rules
+- Test RTL layout changes
+- Verify authentication integration
+- Use proper error boundaries
+- Implement proper loading states

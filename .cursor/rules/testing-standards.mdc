@@ -1,0 +1,164 @@
+---
+globs: *.test.ts,*.test.tsx,*.spec.ts,*.spec.tsx
+description: Testing standards and best practices
+---
+
+# Testing Standards
+
+## Testing Framework
+
+- **Unit Tests**: Use Vitest or Jest for unit testing
+- **Component Tests**: Use React Testing Library
+- **E2E Tests**: Use Playwright for end-to-end testing
+- **Type Tests**: Leverage TypeScript for compile-time testing
+
+## Test File Organization
+
+- Place test files adjacent to source files: `component.tsx` → `component.test.tsx`
+- Use `.test.ts` or `.spec.ts` extensions
+- Group related tests in `__tests__` directories for complex modules
+
+## Unit Testing Best Practices
+
+### Test Structure
+```typescript
+describe('ComponentName', () => {
+  it('should render correctly', () => {
+    // Arrange
+    const props = { ... };
+
+    // Act
+    render(<Component {...props} />);
+
+    // Assert
+    expect(screen.getByText('...')).toBeInTheDocument();
+  });
+});
+```
+
+### Naming Conventions
+- Use descriptive test names: `should validate email format when user submits form`
+- Use `describe` for grouping related tests
+- Use `it` or `test` for individual test cases
+
+## Component Testing
+
+### React Testing Library Principles
+- Test user behavior, not implementation
+- Query by accessibility attributes (role, label, text)
+- Avoid testing internal state directly
+- Use `userEvent` for realistic user interactions
+
+### RTL Best Practices
+```typescript
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+describe('ContactForm', () => {
+  it('should submit form with valid data', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<ContactForm onSubmit={onSubmit} />);
+
+    await user.type(screen.getByLabelText('Email'), 'test@example.com');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ email: 'test@example.com' });
+  });
+});
+```
+
+## RTL/Hebrew Testing
+
+- Test both LTR and RTL layouts
+- Verify Hebrew text renders correctly
+- Test directional styles and alignment
+- Validate RTL-specific user interactions
+
+## Convex Testing
+
+- Mock Convex hooks in tests
+- Test loading and error states
+- Validate optimistic updates
+- Test real-time subscription behavior
+
+## Authentication Testing
+
+- Mock Clerk authentication state
+- Test protected routes
+- Validate authentication flows
+- Test sign-in/sign-out behavior
+
+## E2E Testing
+
+### Playwright Best Practices
+- Test critical user flows (signup, checkout, etc.)
+- Use page object models for maintainability
+- Test across browsers (Chromium, Firefox, WebKit)
+- Include visual regression tests
+
+### Example E2E Test
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('user can navigate to contact page', async ({ page }) => {
+  await page.goto('/');
+  await page.click('text=צור קשר'); // Hebrew "Contact"
+  await expect(page).toHaveURL('/contact');
+  await expect(page.locator('h1')).toContainText('צור קשר');
+});
+```
+
+## Test Coverage
+
+- Aim for 80%+ code coverage
+- Focus on critical paths and business logic
+- 100% coverage for utility functions
+- Don't sacrifice quality for coverage numbers
+
+## Mocking Guidelines
+
+- Mock external APIs and services
+- Use MSW (Mock Service Worker) for API mocking
+- Mock Next.js router when needed
+- Mock Clerk and Convex in tests
+- Avoid mocking internal modules
+
+## Performance Testing
+
+- Test for performance regressions
+- Measure component render times
+- Test large list rendering
+- Validate lazy loading behavior
+
+## Accessibility Testing
+
+- Use `@testing-library/jest-dom` matchers
+- Test keyboard navigation
+- Verify ARIA attributes
+- Test screen reader compatibility
+
+## Continuous Integration
+
+- Run tests on every commit
+- Require tests to pass before merging
+- Run E2E tests on staging environment
+- Generate coverage reports
+
+## Test Commands
+
+- **Run All Tests**: `bun test`
+- **Watch Mode**: `bun test --watch`
+- **Coverage**: `bun test --coverage`
+- **E2E Tests**: `bun test:e2e`
+
+## Best Practices
+
+- Write tests before fixing bugs (TDD for bug fixes)
+- Keep tests simple and focused
+- Avoid test interdependence
+- Use factories for test data
+- Clean up after tests (unmount, clear mocks)
+- Test error states and edge cases
+- Write meaningful assertions

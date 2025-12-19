@@ -1,0 +1,269 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx
+description: Security best practices and guidelines
+---
+
+# Security Best Practices
+
+## Environment Variables
+
+- **Never commit secrets**: Use `.env.local` for sensitive data
+- **Use `.env.example`**: Document required variables without values
+- **Validate on startup**: Check required env vars at application start
+- **Use type-safe env**: Create typed environment configuration
+
+### Environment Variable Pattern
+```typescript
+// lib/env.ts
+const envSchema = {
+  NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+};
+
+Object.entries(envSchema).forEach(([key, value]) => {
+  if (!value) throw new Error(`Missing required env var: ${key}`);
+});
+
+export const env = envSchema;
+```
+
+## Input Validation
+
+- **Validate all user input**: Never trust client-side data
+- **Use validation libraries**: Zod, Yup, or similar
+- **Sanitize HTML**: Use DOMPurify for user-generated content
+- **Validate file uploads**: Check file type, size, and content
+
+### Validation Example with Convex
+```typescript
+// convex/schema.ts
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  users: defineTable({
+    email: v.string(),
+    name: v.string(),
+  }).index("by_email", ["email"]),
+});
+
+// convex/users.ts
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const createUser = mutation({
+  args: {
+    email: v.string(),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
+      throw new Error("Invalid email format");
+    }
+
+    // Validate name length
+    if (args.name.length < 2 || args.name.length > 100) {
+      throw new Error("Name must be 2-100 characters");
+    }
+
+    return await ctx.db.insert("users", args);
+  },
+});
+```
+
+## Authentication & Authorization with Clerk
+
+- **Use Clerk hooks**: `useAuth()`, `useUser()` for client-side
+- **Protect API routes**: Validate authentication on server
+- **Implement RBAC**: Use Clerk organizations and roles
+- **Validate on backend**: Never trust client authentication state
+
+### Protected API Routes
+```typescript
+// app/api/protected/route.ts
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Process authenticated request
+  return NextResponse.json({ data: "Protected data" });
+}
+```
+
+### Protected Server Components
+```typescript
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
+export default async function ProtectedPage() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  return <div>Protected content</div>;
+}
+```
+
+## Convex Security
+
+- **Use authentication**: Integrate Clerk with Convex
+- **Validate in mutations**: Always validate input in Convex functions
+- **Use query validators**: Define strict argument types
+- **Implement authorization**: Check user permissions in handlers
+
+### Secure Convex Functions
+```typescript
+// convex/messages.ts
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const sendMessage = mutation({
+  args: {
+    text: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Verify authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Validate input
+    if (args.text.length === 0 || args.text.length > 1000) {
+      throw new Error("Message must be 1-1000 characters");
+    }
+
+    // Store message
+    return await ctx.db.insert("messages", {
+      text: args.text,
+      userId: identity.subject,
+      timestamp: Date.now(),
+    });
+  },
+});
+```
+
+## XSS Prevention
+
+- **Use React's built-in escaping**: JSX escapes by default
+- **Avoid `dangerouslySetInnerHTML`**: If necessary, sanitize first
+- **Use Content Security Policy**: Configure CSP headers
+- **Validate URLs**: Check user-provided URLs before rendering
+
+### CSP Configuration
+```typescript
+// next.config.ts
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.*.com https://*.convex.cloud;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' blob: data: https://img.clerk.com;
+  font-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  frame-src https://clerk.*.com;
+  upgrade-insecure-requests;
+`;
+
+export default {
+  async headers() {
+    return [{
+      source: '/(.*)',
+      headers: [
+        { key: 'Content-Security-Policy', value: cspHeader.replace(/\n/g, '') },
+      ],
+    }];
+  },
+};
+```
+
+## Dependency Security
+
+- **Regular updates**: Run `bun update` regularly
+- **Audit dependencies**: Use `bun audit` to check for vulnerabilities
+- **Review before installing**: Check package reputation and maintenance
+- **Use lock files**: Commit `bun.lock` for reproducible builds
+
+## Security Headers
+
+Configure security headers in Next.js:
+- `X-Frame-Options`: Prevent clickjacking
+- `X-Content-Type-Options`: Prevent MIME sniffing
+- `Strict-Transport-Security`: Enforce HTTPS
+- `Referrer-Policy`: Control referrer information
+
+## Error Handling
+
+- **Don't expose stack traces**: Show generic errors to users
+- **Log errors securely**: Use proper error tracking service
+- **Sanitize error messages**: Don't leak sensitive information
+
+### Secure Error Handling
+```typescript
+try {
+  await sensitiveOperation();
+} catch (error) {
+  // Log full error for debugging
+  console.error('Operation failed:', error);
+
+  // Return generic error to client
+  return { error: 'An error occurred. Please try again.' };
+}
+```
+
+## File Upload Security
+
+- **Validate file types**: Check MIME type and extension
+- **Limit file size**: Prevent DoS via large uploads
+- **Scan for malware**: Use virus scanning service
+- **Store securely**: Use Convex file storage with proper permissions
+
+## Session Management (Clerk)
+
+- Clerk handles secure session management
+- Sessions are encrypted and httpOnly
+- Automatic session refresh
+- Configure session lifetime in Clerk dashboard
+
+## Monitoring & Logging
+
+- **Log security events**: Failed authentication attempts
+- **Monitor for anomalies**: Unusual patterns or traffic
+- **Set up alerts**: Notify on security incidents
+- **Regular security audits**: Review code and infrastructure
+
+## Compliance
+
+- **GDPR compliance**: If handling EU user data
+- **Data privacy**: Implement proper consent mechanisms
+- **Right to deletion**: Allow users to delete their data
+- **Privacy policy**: Keep updated and accessible
+
+## Security Checklist
+
+- [ ] All secrets in environment variables
+- [ ] Input validation on all forms and Convex functions
+- [ ] Clerk authentication implemented correctly
+- [ ] API routes and server components protected
+- [ ] Security headers configured
+- [ ] Dependencies regularly updated
+- [ ] Error messages don't leak information
+- [ ] File uploads validated and secured
+- [ ] Convex security rules implemented
+- [ ] Security monitoring in place
+
+## Note on Additional Security Tools
+
+For advanced security scanning and vulnerability detection, consider integrating tools like Arcjet in the future if enhanced security monitoring is needed. Always evaluate security tools based on project requirements.

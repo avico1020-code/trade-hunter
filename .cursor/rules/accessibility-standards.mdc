@@ -1,0 +1,310 @@
+---
+globs: *.tsx,*.jsx
+description: Accessibility (a11y) standards and WCAG compliance
+---
+
+# Accessibility Standards
+
+## WCAG Compliance
+
+- Target **WCAG 2.1 Level AA** compliance minimum
+- Aim for **Level AAA** where feasible
+- Test with automated tools and manual testing
+- Consider users with various disabilities
+
+## Semantic HTML
+
+- Use semantic HTML5 elements: `<nav>`, `<main>`, `<article>`, `<section>`, `<header>`, `<footer>`
+- Use headings in logical order: `<h1>` to `<h6>`
+- Use `<button>` for actions, `<a>` for navigation
+- Use proper list elements: `<ul>`, `<ol>`, `<li>`
+
+### Example
+```tsx
+export default function Page() {
+  return (
+    <main>
+      <header>
+        <h1>Page Title</h1>
+      </header>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="/">Home</a></li>
+        </ul>
+      </nav>
+      <article>
+        <h2>Section Title</h2>
+        <p>Content...</p>
+      </article>
+    </main>
+  );
+}
+```
+
+## ARIA Attributes
+
+- Use native HTML elements when possible
+- Add ARIA when semantic HTML isn't sufficient
+- Use `aria-label` for elements without visible text
+- Use `aria-describedby` for additional context
+- Use `aria-live` for dynamic content updates
+
+### ARIA Best Practices
+```tsx
+<button aria-label="Close dialog">
+  <X className="h-4 w-4" />
+</button>
+
+<input
+  type="text"
+  aria-describedby="email-help"
+  aria-invalid={hasError}
+/>
+<span id="email-help">Enter your email address</span>
+
+<div role="alert" aria-live="polite">
+  {statusMessage}
+</div>
+```
+
+## Keyboard Navigation
+
+- All interactive elements must be keyboard accessible
+- Use proper `tabIndex` values (avoid positive numbers)
+- Implement focus indicators (don't remove outlines)
+- Support standard keyboard shortcuts (Tab, Enter, Space, Esc, Arrow keys)
+
+### Focus Management
+```tsx
+import { useEffect, useRef } from 'react';
+
+export function Dialog({ isOpen }: { isOpen: boolean }) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      closeButtonRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  return (
+    <div role="dialog" aria-modal="true">
+      <button ref={closeButtonRef}>Close</button>
+    </div>
+  );
+}
+```
+
+## Color Contrast
+
+- **Text contrast**: 4.5:1 ratio for normal text (AA)
+- **Large text contrast**: 3:1 ratio for text 18pt+ or 14pt+ bold (AA)
+- **Non-text contrast**: 3:1 for UI components and graphics (AA)
+- Test contrast with browser DevTools or online tools
+
+### Color Usage with ShadCN
+```tsx
+// ShadCN colors are designed with accessibility in mind
+<Button variant="default">Accessible Button</Button>
+<Button variant="outline">Accessible Outline</Button>
+
+// Ensure custom colors maintain contrast
+<div className="bg-primary text-primary-foreground">
+  High contrast text
+</div>
+```
+
+## Form Accessibility
+
+- **Label all inputs**: Use ShadCN Label component with proper `htmlFor`
+- **Group related inputs**: Use `<fieldset>` and `<legend>`
+- **Provide error messages**: Associate with inputs using `aria-describedby`
+- **Show validation states**: Use `aria-invalid` attribute
+
+### Accessible Form with ShadCN
+```tsx
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+<form>
+  <div className="space-y-2">
+    <Label htmlFor="email">Email *</Label>
+    <Input
+      id="email"
+      type="email"
+      required
+      aria-required="true"
+      aria-describedby={error ? "email-error" : undefined}
+      aria-invalid={!!error}
+    />
+    {error && (
+      <span id="email-error" role="alert" className="text-sm text-destructive">
+        {error}
+      </span>
+    )}
+  </div>
+
+  <Button type="submit">Submit</Button>
+</form>
+```
+
+## Image Accessibility
+
+- **Alt text**: Provide meaningful descriptions for all images
+- **Decorative images**: Use empty alt (`alt=""`) or CSS background
+- **Complex images**: Provide detailed descriptions
+- **Icon buttons**: Include text alternatives
+
+### Image Examples
+```tsx
+{/* Informative image */}
+<img src="/chart.png" alt="Sales increased 30% in Q4 2024" />
+
+{/* Decorative image */}
+<img src="/decoration.svg" alt="" role="presentation" />
+
+{/* Icon button with ShadCN */}
+<Button variant="ghost" size="icon" aria-label="Search">
+  <SearchIcon className="h-4 w-4" aria-hidden="true" />
+</Button>
+```
+
+## RTL/Hebrew Accessibility
+
+- Use `lang` attribute: `<html lang="he">`
+- Use `dir` attribute: `<html dir="rtl">`
+- Test screen readers with Hebrew content
+- Ensure logical reading order in RTL layout
+
+## ShadCN Component Accessibility
+
+- ShadCN components include proper ARIA attributes
+- Dialog component has `role="dialog"` and `aria-modal="true"`
+- Dropdown menus have proper keyboard navigation
+- Toast notifications use `role="alert"`
+
+### Accessible Dialog
+```tsx
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+<Dialog>
+  <DialogTrigger asChild>
+    <Button>Open Dialog</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Dialog Title</DialogTitle>
+      <DialogDescription>
+        This description is announced by screen readers
+      </DialogDescription>
+    </DialogHeader>
+    {/* Dialog content */}
+  </DialogContent>
+</Dialog>
+```
+
+## Focus Indicators
+
+- Never remove focus outlines without replacement
+- Make focus indicators clearly visible
+- Use `:focus-visible` for better UX
+- ShadCN components include focus styles
+
+### Focus Styling
+```tsx
+// ShadCN components include accessible focus styles
+<Button>Accessible Focus</Button>
+
+// Custom focus styles if needed
+<a
+  href="/about"
+  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+>
+  Link with Focus
+</a>
+```
+
+## Skip Links
+
+- Provide skip links for keyboard users
+- Allow skipping to main content
+- Make skip links visible on focus
+
+### Skip Link Implementation
+```tsx
+export function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
+      >
+        Skip to main content
+      </a>
+      <nav>{/* Navigation */}</nav>
+      <main id="main-content">
+        {children}
+      </main>
+    </>
+  );
+}
+```
+
+## Screen Reader Support
+
+- Test with screen readers (NVDA, JAWS, VoiceOver)
+- Use `aria-live` for dynamic updates
+- Use `.sr-only` class for screen reader only text
+- Announce page changes in SPAs
+
+### Screen Reader Only Text
+```tsx
+// Tailwind provides sr-only utility
+<span className="sr-only">Loading...</span>
+
+// Use with icons
+<Button>
+  <span className="sr-only">Delete item</span>
+  <TrashIcon aria-hidden="true" />
+</Button>
+```
+
+## Testing Tools
+
+- **Automated**: Axe DevTools, Lighthouse, WAVE
+- **Manual**: Keyboard navigation testing
+- **Screen readers**: NVDA (Windows), VoiceOver (macOS/iOS)
+- **Browser tools**: Chrome DevTools Accessibility pane
+
+## Accessibility Checklist
+
+- [ ] All images have alt text
+- [ ] All forms have labels (using ShadCN Label)
+- [ ] Color contrast meets WCAG AA
+- [ ] Keyboard navigation works
+- [ ] Focus indicators visible
+- [ ] ARIA attributes used correctly
+- [ ] Semantic HTML structure
+- [ ] Skip links implemented
+- [ ] Screen reader tested
+- [ ] No keyboard traps
+- [ ] Error messages announced
+- [ ] Loading states communicated
+- [ ] RTL layout accessible
+- [ ] ShadCN components used correctly
+
+## Resources
+
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+- [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility)
+- [React Accessibility](https://react.dev/learn/accessibility)
+- [Next.js Accessibility](https://nextjs.org/docs/accessibility)
+- [ShadCN Accessibility](https://ui.shadcn.com/docs)

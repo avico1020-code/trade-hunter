@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  /* Color Variables */
+  --color-background: #1a1a1a;
+  --color-foreground: #f5f5f5;
+  --color-card: #2a2a2a;
+  --color-card-foreground: #f5f5f5;
+  --color-popover: #2a2a2a;
+  --color-popover-foreground: #f5f5f5;
+  --color-primary: #ff6b35;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #ffffff;
+  --color-secondary-foreground: #1a1a1a;
+  --color-muted: #2a2a2a;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #3a3a3a;
+  --color-accent-foreground: #f5f5f5;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #fafafa;
+  --color-border: #404040;
+  --color-input: #2a2a2a;
+  --color-ring: #ff6b35;
+  --color-orange: #ff6b35;
+  --color-orange-foreground: #ffffff;
+
+  /* Radius */
+  --radius-lg: 0.5rem;
+  --radius-md: calc(0.5rem - 2px);
+  --radius-sm: calc(0.5rem - 4px);
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-background: #1a1a1a;
+    --color-foreground: #f5f5f5;
+    --color-card: #2a2a2a;
+    --color-card-foreground: #f5f5f5;
+    --color-popover: #2a2a2a;
+    --color-popover-foreground: #f5f5f5;
+    --color-primary: #ff6b35;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #ffffff;
+    --color-secondary-foreground: #1a1a1a;
+    --color-muted: #2a2a2a;
+    --color-muted-foreground: #a1a1aa;
+    --color-accent: #3a3a3a;
+    --color-accent-foreground: #f5f5f5;
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #fafafa;
+    --color-border: #404040;
+    --color-input: #2a2a2a;
+    --color-ring: #ff6b35;
+    --color-orange: #ff6b35;
+    --color-orange-foreground: #ffffff;
+  }
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+.animate-accordion-down {
+  animation: accordion-down 0.2s ease-out;
+}
+
+.animate-accordion-up {
+  animation: accordion-up 0.2s ease-out;
+}

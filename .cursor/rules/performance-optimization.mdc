@@ -1,0 +1,352 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx
+description: Performance optimization guidelines and best practices
+---
+
+# Performance Optimization
+
+## Next.js Performance
+
+### Image Optimization
+- **Use Next.js Image**: Always use `next/image` component
+- **Proper sizing**: Specify `width` and `height`
+- **Lazy loading**: Images lazy load by default
+- **Priority images**: Use `priority` for above-fold images
+
+```tsx
+import Image from 'next/image';
+
+// Above-fold hero image
+<Image
+  src="/hero.jpg"
+  alt="Hero image"
+  width={1200}
+  height={600}
+  priority
+/>
+
+// Below-fold images (lazy loaded by default)
+<Image
+  src="/feature.jpg"
+  alt="Feature"
+  width={400}
+  height={300}
+/>
+```
+
+### Font Optimization
+- Use `next/font` for automatic font optimization
+- Subset fonts to include only needed characters
+- Use `display: swap` for better perceived performance
+
+```tsx
+import { Heebo } from 'next/font/google';
+
+const heebo = Heebo({
+  subsets: ['hebrew', 'latin'],
+  display: 'swap',
+  variable: '--font-heebo',
+});
+```
+
+### Code Splitting
+- Use dynamic imports for heavy components
+- Lazy load below-fold content
+- Split routes automatically with App Router
+
+```tsx
+import dynamic from 'next/dynamic';
+
+const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+  loading: () => <p>Loading...</p>,
+  ssr: false, // Disable SSR if not needed
+});
+```
+
+## Bundle Size Optimization
+
+### Tree Shaking
+- Use named imports for better tree shaking
+- Import only what you need from libraries
+- Use `import type` for TypeScript types
+
+```tsx
+// Good - tree shakeable
+import { Button } from '@/components/ui/button';
+
+// Bad - imports entire library
+import * as UI from '@/components/ui';
+
+// Good - type-only import
+import type { ButtonProps } from '@/components/ui/button';
+```
+
+### ShadCN Component Optimization
+- Only install components you need
+- ShadCN components are already optimized
+- Use Radix UI primitives efficiently
+
+```bash
+# Only add components you use
+bunx shadcn@latest add button card input
+```
+
+## React Performance
+
+### Component Optimization
+- Use `React.memo` for expensive components
+- Avoid inline functions in props
+- Extract static content outside components
+
+```tsx
+import { memo } from 'react';
+
+// Memoized component
+const ExpensiveList = memo(function ExpensiveList({ items }: Props) {
+  return (
+    <ul>
+      {items.map(item => <li key={item.id}>{item.name}</li>)}
+    </ul>
+  );
+});
+```
+
+### Hook Optimization
+- Use `useMemo` for expensive calculations
+- Use `useCallback` for stable function references
+- Don't over-optimize simple operations
+
+```tsx
+import { useMemo, useCallback } from 'react';
+
+function Component({ data, onSave }: Props) {
+  // Memoize expensive calculations
+  const processedData = useMemo(() => {
+    return data.map(item => expensiveOperation(item));
+  }, [data]);
+
+  // Memoize callback to prevent child re-renders
+  const handleSave = useCallback(() => {
+    onSave(processedData);
+  }, [onSave, processedData]);
+
+  return <Child data={processedData} onSave={handleSave} />;
+}
+```
+
+## Convex Performance
+
+### Query Optimization
+- Use indexes for efficient queries
+- Paginate large result sets
+- Use `useQuery` hooks efficiently
+
+```typescript
+// convex/schema.ts
+export default defineSchema({
+  messages: defineTable({
+    text: v.string(),
+    userId: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_timestamp", ["timestamp"]),
+});
+
+// Efficient querying with indexes
+export const getRecentMessages = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_timestamp")
+      .order("desc")
+      .take(50);
+  },
+});
+```
+
+### Mutation Optimization
+- Batch mutations when possible
+- Use optimistic updates for better UX
+- Avoid unnecessary database reads
+
+### Real-time Optimization
+- Subscribe only to needed data
+- Use pagination for large lists
+- Implement proper loading states
+
+## Loading States
+
+### Suspense Boundaries
+- Use React Suspense for async components
+- Provide meaningful loading states
+- Stream server components
+
+```tsx
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function Page() {
+  return (
+    <Suspense fallback={<Skeleton className="h-20 w-full" />}>
+      <AsyncContent />
+    </Suspense>
+  );
+}
+```
+
+### Clerk Loading States
+- Use Clerk's loading states properly
+- Show skeletons during authentication
+- Handle loading UI gracefully
+
+```tsx
+import { useUser } from '@clerk/nextjs';
+
+function Profile() {
+  const { isLoaded, user } = useUser();
+
+  if (!isLoaded) {
+    return <Skeleton className="h-10 w-32" />;
+  }
+
+  return <div>Welcome, {user?.firstName}</div>;
+}
+```
+
+## Caching Strategies
+
+### Static Generation
+- Use static generation when possible
+- Leverage ISR for dynamic data
+- Cache API responses appropriately
+
+```tsx
+// Static generation with revalidation
+export const revalidate = 3600; // Revalidate every hour
+
+export default async function Page() {
+  const data = await fetchData();
+  return <Content data={data} />;
+}
+```
+
+### Convex Caching
+- Convex automatically caches query results
+- Queries re-run only when dependencies change
+- Use stable query arguments for better caching
+
+## CSS Performance
+
+### Tailwind Optimization
+- Purge unused CSS in production
+- Use JIT mode (enabled by default in v4)
+- Avoid overly complex selectors
+
+### ShadCN Performance
+- ShadCN components use optimized Tailwind classes
+- CSS variables reduce stylesheet size
+- Theme switching uses CSS variables efficiently
+
+## Network Performance
+
+### API Optimization
+- Batch API requests when possible
+- Use Convex for efficient real-time data
+- Implement pagination for large datasets
+
+### Prefetching
+- Prefetch critical resources
+- Use `<Link>` for automatic prefetching
+- Prefetch data on hover/focus
+
+```tsx
+import Link from 'next/link';
+
+// Next.js Link prefetches by default
+<Link href="/dashboard" prefetch>
+  Dashboard
+</Link>
+```
+
+## Monitoring & Metrics
+
+### Core Web Vitals
+- **LCP** (Largest Contentful Paint): < 2.5s
+- **FID** (First Input Delay): < 100ms
+- **CLS** (Cumulative Layout Shift): < 0.1
+
+### Performance Monitoring
+- Use Lighthouse for performance audits
+- Monitor with Vercel Analytics
+- Track with Convex analytics
+- Set performance budgets
+
+### Real User Monitoring
+```tsx
+// app/layout.tsx
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/react';
+
+export default function RootLayout({ children }: Props) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  );
+}
+```
+
+## Build Performance
+
+### Turbopack
+- Use Turbopack for faster builds
+- Incremental builds with caching
+- Optimize build process
+
+### Parallel Processing
+- Enable parallel processing in build
+- Use caching for CI/CD
+- Optimize deployment pipeline
+
+## Performance Checklist
+
+- [ ] Images optimized with next/image
+- [ ] Fonts optimized with next/font
+- [ ] Code splitting implemented
+- [ ] Bundle size monitored
+- [ ] React.memo used appropriately
+- [ ] useMemo/useCallback for expensive operations
+- [ ] Convex queries indexed properly
+- [ ] Suspense boundaries for async content
+- [ ] Static generation when possible
+- [ ] Clerk loading states handled
+- [ ] CSS purged and optimized
+- [ ] Prefetching enabled
+- [ ] Core Web Vitals monitored
+- [ ] Performance budgets set
+- [ ] ShadCN components optimized
+
+## Performance Testing
+
+```bash
+# Run Lighthouse audit
+bun run build
+bun run start
+# Then run Lighthouse in Chrome DevTools
+
+# Test with different network conditions
+# Use Chrome DevTools Network throttling
+```
+
+## Resources
+
+- [Next.js Performance](https://nextjs.org/docs/app/building-your-application/optimizing)
+- [Web.dev Performance](https://web.dev/performance/)
+- [React Performance](https://react.dev/learn/render-and-commit)
+- [Convex Performance](https://docs.convex.dev/production/best-practices)
